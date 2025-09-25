@@ -1,130 +1,127 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
+import Razorpay from 'razorpay';
 
 @Injectable()
 export class CurlecService {
   private readonly logger = new Logger(CurlecService.name);
-  private readonly baseUrl: string;
-  private readonly secretKey: string;
-  private readonly publishableKey: string;
+  private readonly razorpay: Razorpay;
   private readonly webhookSecret: string;
 
   constructor(private configService: ConfigService) {
-    this.secretKey = this.configService.get<string>('payment.curlec.secretKey');
-    this.publishableKey = this.configService.get<string>('payment.curlec.publishableKey');
+    this.razorpay = new Razorpay({
+      key_id: this.configService.get<string>('payment.curlec.publishableKey'),
+      key_secret: this.configService.get<string>('payment.curlec.secretKey'),
+    });
     this.webhookSecret = this.configService.get<string>('payment.curlec.webhookSecret');
-    this.baseUrl = 'https://api.curlec.com'; // Replace with actual Curlec API URL
   }
 
   /**
-   * Create a payment intent
+   * Create a payment order
    */
-  async createPaymentIntent(
+  async createPaymentOrder(
     amount: number,
     currency: string = 'MYR',
     customerId: string,
     description?: string,
     metadata?: Record<string, any>,
-  ): Promise<PaymentIntent> {
+  ): Promise<PaymentOrder> {
     try {
-      const response = await axios.post(
-        `${this.baseUrl}/v1/payment_intents`,
-        {
-          amount: Math.round(amount * 100), // Convert to cents
-          currency: currency.toLowerCase(),
-          customer: customerId,
-          description,
-          metadata,
-          payment_method_types: ['card', 'fpx', 'grabpay', 'boost'],
+      const options = {
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: currency.toLowerCase(),
+        receipt: `receipt_${customerId}_${Date.now()}`,
+        notes: {
+          customer_id: customerId,
+          description: description || 'AI Sales Agent Payment',
+          ...metadata,
         },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.secretKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      };
 
-      this.logger.log(`Created payment intent: ${response.data.id}`);
-      return response.data;
+      const order = await this.razorpay.orders.create(options);
+
+      this.logger.log(`Created payment order: ${order.id}`);
+      return {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        status: 'created',
+        receipt: order.receipt,
+        notes: order.notes,
+        created_at: order.created_at,
+      };
     } catch (error) {
-      this.logger.error('Error creating payment intent:', error);
-      throw new Error('Failed to create payment intent');
+      this.logger.error('Error creating payment order:', error);
+      throw new Error('Failed to create payment order');
     }
   }
 
   /**
-   * Confirm a payment intent
+   * Verify payment signature
    */
-  async confirmPaymentIntent(
-    paymentIntentId: string,
-    paymentMethodId: string,
-  ): Promise<PaymentIntent> {
+  async verifyPaymentSignature(
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+  ): Promise<boolean> {
     try {
-      const response = await axios.post(
-        `${this.baseUrl}/v1/payment_intents/${paymentIntentId}/confirm`,
-        {
-          payment_method: paymentMethodId,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.secretKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const crypto = require('crypto');
+      const expectedSignature = crypto
+        .createHmac('sha256', this.webhookSecret)
+        .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+        .digest('hex');
 
-      this.logger.log(`Confirmed payment intent: ${paymentIntentId}`);
-      return response.data;
+      const isValid = expectedSignature === razorpaySignature;
+      
+      if (isValid) {
+        this.logger.log(`Payment signature verified for order: ${razorpayOrderId}`);
+      } else {
+        this.logger.warn(`Invalid payment signature for order: ${razorpayOrderId}`);
+      }
+      
+      return isValid;
     } catch (error) {
-      this.logger.error('Error confirming payment intent:', error);
-      throw new Error('Failed to confirm payment intent');
+      this.logger.error('Error verifying payment signature:', error);
+      return false;
     }
   }
 
   /**
-   * Retrieve a payment intent
+   * Retrieve a payment order
    */
-  async getPaymentIntent(paymentIntentId: string): Promise<PaymentIntent> {
+  async getPaymentOrder(orderId: string): Promise<PaymentOrder> {
     try {
-      const response = await axios.get(
-        `${this.baseUrl}/v1/payment_intents/${paymentIntentId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.secretKey}`,
-          },
-        },
-      );
-
-      return response.data;
+      const order = await this.razorpay.orders.fetch(orderId);
+      
+      return {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        status: order.status,
+        receipt: order.receipt,
+        notes: order.notes,
+        created_at: order.created_at,
+      };
     } catch (error) {
-      this.logger.error('Error retrieving payment intent:', error);
-      throw new Error('Failed to retrieve payment intent');
+      this.logger.error('Error retrieving payment order:', error);
+      throw new Error('Failed to retrieve payment order');
     }
   }
 
   /**
-   * Cancel a payment intent
+   * Cancel a payment order
    */
-  async cancelPaymentIntent(paymentIntentId: string): Promise<PaymentIntent> {
+  async cancelPaymentOrder(orderId: string): Promise<PaymentOrder> {
     try {
-      const response = await axios.post(
-        `${this.baseUrl}/v1/payment_intents/${paymentIntentId}/cancel`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${this.secretKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      this.logger.log(`Cancelled payment intent: ${paymentIntentId}`);
-      return response.data;
+      // Note: Razorpay doesn't have a direct cancel method for orders
+      // Orders are automatically cancelled if not paid within 15 minutes
+      this.logger.log(`Order ${orderId} will be auto-cancelled if not paid within 15 minutes`);
+      
+      // Return the current order status
+      return await this.getPaymentOrder(orderId);
     } catch (error) {
-      this.logger.error('Error cancelling payment intent:', error);
-      throw new Error('Failed to cancel payment intent');
+      this.logger.error('Error cancelling payment order:', error);
+      throw new Error('Failed to cancel payment order');
     }
   }
 
@@ -132,28 +129,35 @@ export class CurlecService {
    * Create a refund
    */
   async createRefund(
-    paymentIntentId: string,
+    paymentId: string,
     amount?: number,
     reason?: string,
   ): Promise<Refund> {
     try {
-      const response = await axios.post(
-        `${this.baseUrl}/v1/refunds`,
-        {
-          payment_intent: paymentIntentId,
-          amount: amount ? Math.round(amount * 100) : undefined,
-          reason,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.secretKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const options: any = {
+        payment_id: paymentId,
+      };
 
-      this.logger.log(`Created refund: ${response.data.id}`);
-      return response.data;
+      if (amount) {
+        options.amount = Math.round(amount * 100); // Convert to cents
+      }
+
+      if (reason) {
+        options.notes = { reason };
+      }
+
+      const refund = await this.razorpay.payments.refund(paymentId, options);
+
+      this.logger.log(`Created refund: ${refund.id}`);
+      return {
+        id: refund.id,
+        amount: refund.amount,
+        currency: refund.currency,
+        status: refund.status,
+        payment_id: refund.payment_id,
+        notes: refund.notes,
+        created_at: refund.created_at,
+      };
     } catch (error) {
       this.logger.error('Error creating refund:', error);
       throw new Error('Failed to create refund');
@@ -237,14 +241,14 @@ export class CurlecService {
       this.logger.log(`Processing webhook event: ${event.type}`);
 
       switch (event.type) {
-        case 'payment_intent.succeeded':
+        case 'payment.captured':
           await this.handlePaymentSucceeded(event.data);
           break;
-        case 'payment_intent.payment_failed':
+        case 'payment.failed':
           await this.handlePaymentFailed(event.data);
           break;
-        case 'payment_intent.cancelled':
-          await this.handlePaymentCancelled(event.data);
+        case 'order.paid':
+          await this.handleOrderPaid(event.data);
           break;
         case 'refund.created':
           await this.handleRefundCreated(event.data);
@@ -272,10 +276,11 @@ export class CurlecService {
     // Handle retry logic
   }
 
-  private async handlePaymentCancelled(data: any): Promise<void> {
-    this.logger.log(`Payment cancelled: ${data.id}`);
-    // Update payment status in database
-    // Release reserved inventory
+  private async handleOrderPaid(data: any): Promise<void> {
+    this.logger.log(`Order paid: ${data.id}`);
+    // Update order status in database
+    // Send confirmation email/SMS
+    // Update inventory
   }
 
   private async handleRefundCreated(data: any): Promise<void> {
@@ -295,16 +300,14 @@ export class CurlecService {
   }
 }
 
-export interface PaymentIntent {
+export interface PaymentOrder {
   id: string;
   amount: number;
   currency: string;
-  status: 'requires_payment_method' | 'requires_confirmation' | 'requires_action' | 'processing' | 'succeeded' | 'cancelled';
-  client_secret: string;
-  customer: string;
-  description?: string;
-  metadata?: Record<string, any>;
-  created: number;
+  status: 'created' | 'attempted' | 'paid' | 'cancelled';
+  receipt: string;
+  notes?: Record<string, any>;
+  created_at: number;
 }
 
 export interface PaymentMethod {
@@ -321,9 +324,9 @@ export interface Refund {
   amount: number;
   currency: string;
   status: 'succeeded' | 'pending' | 'failed' | 'cancelled';
-  payment_intent: string;
-  reason?: string;
-  created: number;
+  payment_id: string;
+  notes?: Record<string, any>;
+  created_at: number;
 }
 
 export interface WebhookEvent {

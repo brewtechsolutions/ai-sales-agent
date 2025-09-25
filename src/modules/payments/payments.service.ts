@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CacheService } from '../../common/cache/cache.service';
-import { CurlecService, PaymentIntent, Refund } from './curlec.service';
+import { CurlecService, PaymentOrder, Refund } from './curlec.service';
 
 @Injectable()
 export class PaymentsService {
@@ -25,13 +25,13 @@ export class PaymentsService {
   ) {
     try {
       // Create payment intent with Curlec
-      const paymentIntent = await this.curlecService.createPaymentIntent(
-        amount,
-        currency,
-        customerId,
-        description,
-        metadata,
-      );
+    const paymentOrder = await this.curlecService.createPaymentOrder(
+      amount,
+      currency,
+      customerId,
+      description,
+      metadata,
+    );
 
       // Save payment to database
       const payment = await this.prisma.payment.create({
@@ -40,11 +40,11 @@ export class PaymentsService {
           amount,
           currency,
           status: 'PENDING',
-          transactionId: paymentIntent.id,
+          transactionId: paymentOrder.id,
           metadata: {
             ...metadata,
-            paymentIntentId: paymentIntent.id,
-            clientSecret: paymentIntent.client_secret,
+            orderId: paymentOrder.id,
+            receipt: paymentOrder.receipt,
           },
         },
       });
@@ -52,8 +52,8 @@ export class PaymentsService {
       this.logger.log(`Created payment: ${payment.id}`);
       return {
         ...payment,
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
+        orderId: paymentOrder.id,
+        receipt: paymentOrder.receipt,
       };
     } catch (error) {
       this.logger.error('Error creating payment:', error);
@@ -81,20 +81,26 @@ export class PaymentsService {
         throw new Error('Payment is not in pending status');
       }
 
-      // Confirm payment intent with Curlec
-      const paymentIntent = await this.curlecService.confirmPaymentIntent(
-        payment.transactionId,
-        paymentMethodId,
+      // Verify payment with Razorpay
+      const isValid = await this.curlecService.verifyPaymentSignature(
+        payment.transactionId, // This should be the order ID
+        paymentMethodId, // This should be the payment ID
+        payment.metadata?.razorpaySignature || '', // This should come from the frontend
       );
+
+      if (!isValid) {
+        throw new Error('Invalid payment signature');
+      }
 
       // Update payment status
       const updatedPayment = await this.prisma.payment.update({
         where: { id: paymentId },
         data: {
-          status: paymentIntent.status === 'succeeded' ? 'COMPLETED' : 'FAILED',
+          status: 'COMPLETED',
           metadata: {
             ...payment.metadata,
-            paymentIntent,
+            verified: true,
+            verifiedAt: new Date().toISOString(),
           },
         },
       });
