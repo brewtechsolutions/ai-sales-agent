@@ -1,0 +1,280 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Language {
+  EN
+  MS
+  ZH
+}
+
+enum ConversationStage {
+  INTRODUCTION
+  DISCOVERY
+  STORY_SHARING
+  NEEDS_UNDERSTANDING
+  SOLUTION_RECOMMENDATION
+  CONCERN_ADDRESSING
+  FRIENDLY_CLOSE
+  NATURAL_END
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum ConsultationStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  PUSH
+  WHATSAPP
+}
+
+// Core Models
+model Customer {
+  id                String   @id @default(cuid())
+  email             String?  @unique
+  phone             String?  @unique
+  name              String?
+  preferredLanguage Language @default(EN)
+  timezone          String   @default("Asia/Kuala_Lumpur")
+  culturalContext   Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  conversations     Conversation[]
+  consultations     Consultation[]
+  payments          Payment[]
+  analytics         CustomerAnalytics[]
+
+  @@map("customers")
+}
+
+model Conversation {
+  id                    String             @id @default(cuid())
+  sessionId             String             @unique
+  customerId            String?
+  language              Language           @default(EN)
+  detectedLanguage      Language?          // Language detected from customer input
+  currentIntent         String?
+  conversationStage     ConversationStage  @default(INTRODUCTION)
+  salesPersonaConfig    Json?              // Dynamic sales persona configuration
+  culturalContext       Json?              // Malaysian cultural context
+  isActive              Boolean            @default(true)
+  lastActivityAt        DateTime           @default(now())
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  // Relations
+  customer              Customer?          @relation(fields: [customerId], references: [id])
+  messages              Message[]
+  analytics             ConversationAnalytics[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // 'user', 'assistant', 'system'
+  content        String
+  metadata       Json?    // Additional message metadata
+  timestamp      DateTime @default(now())
+
+  // Relations
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Product {
+  id                String   @id @default(cuid())
+  name              String
+  description       String
+  category          String
+  price             Decimal  @db.Decimal(10, 2)
+  currency          String   @default("MYR")
+  stockQuantity     Int      @default(0)
+  isActive          Boolean  @default(true)
+  metadata          Json?    // Product specifications, images, etc.
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  recommendations   ProductRecommendation[]
+  consultations     Consultation[]
+
+  @@map("products")
+}
+
+model ProductRecommendation {
+  id                String   @id @default(cuid())
+  conversationId    String
+  productId         String
+  confidence        Float    // 0-1 confidence score
+  reason            String?  // Why this product was recommended
+  createdAt         DateTime @default(now())
+
+  // Relations
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  product           Product      @relation(fields: [productId], references: [id])
+
+  @@map("product_recommendations")
+}
+
+model Consultation {
+  id                String             @id @default(cuid())
+  customerId        String
+  productId         String?
+  expertName        String
+  expertEmail       String
+  scheduledAt       DateTime
+  duration          Int                @default(60) // minutes
+  status            ConsultationStatus @default(SCHEDULED)
+  meetingLink       String?
+  notes             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  customer          Customer @relation(fields: [customerId], references: [id])
+  product           Product? @relation(fields: [productId], references: [id])
+
+  @@map("consultations")
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  customerId        String
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("MYR")
+  status            PaymentStatus @default(PENDING)
+  paymentMethod     String?       // FPX, online banking, e-wallet, etc.
+  transactionId     String?       // External payment gateway transaction ID
+  metadata          Json?         // Payment gateway response data
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  @@map("payments")
+}
+
+model Notification {
+  id                String           @id @default(cuid())
+  customerId        String?
+  type              NotificationType
+  title             String
+  content           String
+  isSent            Boolean          @default(false)
+  sentAt            DateTime?
+  metadata          Json?
+  createdAt         DateTime         @default(now())
+
+  @@map("notifications")
+}
+
+// Analytics Models
+model ConversationAnalytics {
+  id                String   @id @default(cuid())
+  conversationId    String
+  totalMessages     Int
+  avgResponseTime   Float?   // seconds
+  customerSatisfaction Int?  // 1-5 rating
+  conversionRate    Float?   // 0-1
+  languageUsed      Language
+  stageCompleted    ConversationStage?
+  createdAt         DateTime @default(now())
+
+  // Relations
+  conversation      Conversation @relation(fields: [conversationId], references: [id])
+
+  @@map("conversation_analytics")
+}
+
+model CustomerAnalytics {
+  id                String   @id @default(cuid())
+  customerId        String
+  totalConversations Int     @default(0)
+  totalConsultations Int     @default(0)
+  totalSpent        Decimal  @default(0) @db.Decimal(10, 2)
+  preferredLanguage Language
+  lastActivityAt    DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  @@map("customer_analytics")
+}
+
+model SystemAnalytics {
+  id                String   @id @default(cuid())
+  date              DateTime @unique
+  totalConversations Int     @default(0)
+  totalMessages     Int      @default(0)
+  avgResponseTime   Float    @default(0)
+  conversionRate    Float    @default(0)
+  customerSatisfaction Float @default(0)
+  languageDistribution Json? // {EN: 0.5, MS: 0.3, ZH: 0.2}
+  createdAt         DateTime @default(now())
+
+  @@map("system_analytics")
+}
+
+// Admin Models
+model AdminUser {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  name              String
+  role              String   @default("admin")
+  isActive          Boolean  @default(true)
+  lastLoginAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("admin_users")
+}
+
+model SalesPersonaConfig {
+  id                    String   @id @default(cuid())
+  name                  String   @unique
+  salespersonName       String
+  companyName           String
+  businessDescription   String
+  companyValues         String
+  productCategory       String
+  currentPromotionDetails String?
+  targetDemographic     String?
+  priceRange            String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("sales_persona_configs")
+}

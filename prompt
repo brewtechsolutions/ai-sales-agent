@@ -1,0 +1,486 @@
+# Build a Robust AI Sales Agent System using NestJS
+
+## Project Overview
+Create a sophisticated AI-powered sales agent system tailored for Malaysian e-commerce businesses. The system should be built using NestJS with modern architecture patterns, microservices design, and enterprise-grade scalability.
+
+## Core Requirements
+
+### 1. Technology Stack
+- **Backend Framework**: NestJS (latest version)
+- **Database**: PostgreSQL with Prisma ORM
+- **AI/LLM Integration**: OpenAI GPT-4 or Claude API with fallback options
+- **Calendar System**: Google Calendar API integration
+- **Payment Processing**: Curlec for Malaysian market optimization
+- **Authentication**: Optional JWT (configurable for chatbot integration scenarios)
+- **Caching**: Redis (dynamically configurable, disabled by default, optional via env)
+- **Queue System**: Bull/BullMQ for background jobs
+- **Monitoring**: Winston logging with structured logs
+- **Documentation**: Swagger/OpenAPI 3.0
+
+### 2. Malaysian-Specific Features
+- **Language Support**: Trilingual support (English, Bahasa Malaysia, Mandarin) with dynamic switching
+- **Timezone**: Malaysia Standard Time (MST/GMT+8) handling
+- **Currency**: Malaysian Ringgit (MYR) with proper formatting
+- **Business Hours**: Accommodate Malaysian working hours (9 AM - 6 PM MYT)
+- **Cultural Context**: 
+  - Understand Malaysian business etiquette
+  - Support for local payment methods (Curlec, FPX, Grab Pay, etc.)
+  - Handle Malaysian holidays and festival seasons
+  - Address customers with appropriate Malaysian courtesy terms
+
+### 3. Architecture Design
+
+#### Modular Structure:
+```
+src/
+├── modules/
+│   ├── ai-agent/           # Core AI conversation logic
+│   ├── calendar/           # Google Calendar integration
+│   ├── products/           # Product management & recommendations
+│   ├── payments/           # Curlec payment processing
+│   ├── customers/          # Customer management
+│   ├── consultations/      # Expert consultation booking
+│   ├── analytics/          # Conversation & sales analytics
+│   ├── notifications/      # Email/SMS notifications
+│   ├── auth/               # Optional JWT authentication (chatbot integration)
+│   └── admin/              # Admin dashboard
+├── common/
+│   ├── decorators/
+│   ├── filters/
+│   ├── guards/
+│   ├── interceptors/
+│   └── pipes/
+├── config/
+└── database/
+```
+
+### 4. Core Features Implementation
+
+#### A. Intelligent AI Conversation Engine
+- **Dynamic Sales Persona**: Implement the Malaysian Sales Agent Framework with configurable:
+  - `{salesperson_name}`: Customizable agent identity
+  - `{company_name}` & `{business_description}`: Adaptable business context
+  - `{product_category}`: Dynamic product/service focus
+  - `{current_promotion_details}`: Real-time promotion integration
+  - `{company_values}`: Brand-aligned messaging
+- **8-Stage Conversation Flow**:
+  1. Natural Introduction (Warm Malaysian-style opening)
+  2. Gentle Discovery (Friend-to-friend inquiry)
+  3. Personal Story Sharing (Build rapport with local context)
+  4. Understanding Needs (Deep listening with cultural sensitivity)
+  5. Solution as Recommendation (Helpful advice, not sales pitch)
+  6. Address Concerns Naturally (Malaysian logic + empathy)
+  7. Friendly Close (Personal, exclusive offers)
+  8. Natural End (Relationship building for future)
+- **Context Awareness**: Maintain conversation context across sessions
+- **Intent Recognition**: Identify customer intents (product inquiry, booking, purchase)
+- **Sentiment Analysis**: Detect customer mood and adjust responses
+- **Trilingual Intelligence**: 
+  - **Critical Feature**: Mirror customer's language choice immediately
+  - Seamless switching between English, Bahasa Malaysia, and Mandarin
+  - Natural code-switching (Manglish style) after following customer's lead
+  - Cultural expression adaptation per language
+- **Malaysian Cultural Integration**:
+  - Festival-aware responses (CNY, Hari Raya, Deepavali, etc.)
+  - Local reference integration (weather, locations, lifestyle)
+  - Payment method awareness (FPX, online banking, etc.)
+  - Delivery context (KL traffic, Malaysian logistics)
+- **Memory Management**: Remember customer preferences, language choice, and conversation history
+- **Escalation Handling**: Know when to transfer to human agents
+- **Objection Handling Engine**: Pre-configured Malaysian-style responses for common concerns
+
+#### B. Smart Calendar Integration
+- **Available Slots Detection**: Query Google Calendar for real-time availability
+- **Malaysian Business Hours**: Respect local business calendar
+- **Time Zone Conversion**: Handle international customers properly
+- **Buffer Time Management**: Automatic buffer between appointments
+- **Recurring Availability**: Set up recurring available time slots
+- **Multiple Expert Calendars**: Support different experts with their own calendars
+- **Confirmation Flows**: Send calendar invites with proper Malaysian formatting
+
+#### C. Advanced Product Recommendation System
+- **RAG Implementation**: Vector database for product knowledge retrieval
+- **Customer Profiling**: Build profiles based on conversation history
+- **Preference Learning**: Machine learning for recommendation improvement
+- **Inventory Integration**: Real-time stock level checking
+- **Price Comparison**: Competitive pricing analysis
+- **Bundle Suggestions**: Smart product bundling recommendations
+- **Malaysian Market Context**: Understand local market preferences and trends
+
+#### D. Flexible Payment Processing
+- **Curlec Integration**: Primary payment gateway optimized for Malaysian market
+- **Local Payment Methods**: FPX, online banking, e-wallet integrations
+- **Currency Handling**: Proper MYR formatting and conversion
+- **Tax Calculation**: Malaysian GST/SST compliance
+- **Failed Payment Recovery**: Automated retry mechanisms
+- **Invoice Generation**: Malaysian-compliant invoice formatting
+
+### 5. Advanced System Features
+
+#### A. Conversation Management
+```typescript
+interface ConversationContext {
+  customerId: string;
+  sessionId: string;
+  language: 'en' | 'ms' | 'zh';
+  detectedLanguagePreference: 'en' | 'ms' | 'zh'; // Critical: Mirror customer's language immediately
+  currentIntent: string;
+  conversationStage: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8; // 8-stage Malaysian sales flow
+  conversationHistory: Message[];
+  customerProfile: CustomerProfile;
+  timezone: string;
+  culturalContext: MalaysianCulturalContext;
+  salesPersona: SalesPersonaConfig;
+}
+
+interface SalesPersonaConfig {
+  salespersonName: string;
+  companyName: string;
+  businessDescription: string;
+  companyValues: string;
+  productCategory: string;
+  currentPromotionDetails: string;
+  targetDemographic: string;
+  priceRange: string;
+}
+
+interface MalaysianCulturalContext {
+  currentFestivalSeason?: string;
+  weatherContext?: string;
+  regionalPreferences?: string;
+  paymentMethodPreferences?: string[];
+  deliveryLocationContext?: string;
+}
+```
+
+#### B. Real-time Communication
+- **WebSocket Integration**: Real-time chat capabilities
+- **Typing Indicators**: Show AI thinking/processing states
+- **Message Queuing**: Handle high-volume conversations
+- **Connection Resilience**: Automatic reconnection handling
+
+#### C. Analytics & Insights
+- **Conversation Analytics**: Track engagement metrics
+- **Sales Funnel Analysis**: Monitor conversion rates
+- **Customer Journey Mapping**: Understand customer paths
+- **Performance Metrics**: AI response accuracy and speed
+- **Malaysian Market Insights**: Local customer behavior analysis
+
+### 6. System Configuration & Environment
+
+#### A. Authentication Strategy (Optional)
+```typescript
+// Environment Configuration
+interface AuthConfig {
+  ENABLE_JWT_AUTH?: boolean; // Default: false (for chatbot integration)
+  JWT_SECRET?: string;
+  JWT_EXPIRY?: string;
+  REFRESH_TOKEN_EXPIRY?: string;
+}
+
+// Flexible Authentication Guard
+@Injectable()
+export class OptionalAuthGuard implements CanActivate {
+  constructor(private configService: ConfigService) {}
+  
+  canActivate(context: ExecutionContext): boolean {
+    const isAuthEnabled = this.configService.get<boolean>('ENABLE_JWT_AUTH', false);
+    
+    if (!isAuthEnabled) {
+      return true; // Skip authentication for chatbot integrations
+    }
+    
+    // Standard JWT validation logic here
+    return this.validateJWTToken(context);
+  }
+}
+```
+
+#### B. Redis Configuration (Dynamic & Optional)
+```typescript
+// Environment Configuration
+interface RedisConfig {
+  ENABLE_REDIS?: boolean; // Default: false
+  REDIS_HOST?: string;
+  REDIS_PORT?: number;
+  REDIS_PASSWORD?: string;
+  REDIS_DB?: number;
+}
+
+// Dynamic Redis Module Configuration
+@Module({
+  imports: [
+    ConfigModule,
+    // Conditionally import Redis based on environment
+    ...(process.env.ENABLE_REDIS === 'true' 
+      ? [RedisModule.forRootAsync({
+          useFactory: (configService: ConfigService) => ({
+            host: configService.get('REDIS_HOST'),
+            port: configService.get('REDIS_PORT'),
+            password: configService.get('REDIS_PASSWORD'),
+            db: configService.get('REDIS_DB', 0),
+          }),
+          inject: [ConfigService],
+        })] 
+      : []
+    ),
+  ],
+})
+export class AppModule {}
+
+// Fallback Caching Service
+@Injectable()
+export class CacheService {
+  private memoryCache = new Map();
+  
+  constructor(
+    @Optional() @Inject('REDIS_CLIENT') private redisClient?: RedisClient,
+    private configService: ConfigService
+  ) {}
+  
+  async set(key: string, value: any, ttl?: number): Promise<void> {
+    if (this.configService.get<boolean>('ENABLE_REDIS', false) && this.redisClient) {
+      await this.redisClient.setex(key, ttl || 3600, JSON.stringify(value));
+    } else {
+      // Fallback to memory cache
+      this.memoryCache.set(key, { value, expires: Date.now() + (ttl || 3600) * 1000 });
+    }
+  }
+  
+  async get(key: string): Promise<any> {
+    if (this.configService.get<boolean>('ENABLE_REDIS', false) && this.redisClient) {
+      const result = await this.redisClient.get(key);
+      return result ? JSON.parse(result) : null;
+    } else {
+      // Fallback to memory cache
+      const cached = this.memoryCache.get(key);
+      if (cached && cached.expires > Date.now()) {
+        return cached.value;
+      }
+      this.memoryCache.delete(key);
+      return null;
+    }
+  }
+}
+```
+
+#### C. Environment Variables Template
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/ai_sales_agent
+
+# AI/LLM Configuration
+OPENAI_API_KEY=your_openai_key
+CLAUDE_API_KEY=your_claude_key
+
+# Authentication (Optional - for chatbot integration scenarios)
+ENABLE_JWT_AUTH=false # Set to true if JWT authentication is needed
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRY=24h
+REFRESH_TOKEN_EXPIRY=7d
+
+# Redis Configuration (Optional)
+ENABLE_REDIS=false # Set to true to enable Redis caching
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# Curlec Payment Gateway
+CURLEC_SECRET_KEY=your_curlec_secret_key
+CURLEC_PUBLISHABLE_KEY=your_curlec_publishable_key
+CURLEC_WEBHOOK_SECRET=your_curlec_webhook_secret
+
+# Google Calendar
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Application
+PORT=3000
+NODE_ENV=production
+LOG_LEVEL=info
+
+# Chatbot Integration
+CHATBOT_WEBHOOK_URL=your_chatbot_webhook_url
+ENABLE_CHATBOT_MODE=true # Disables authentication requirements
+```
+
+### 7. Chatbot Integration Considerations
+
+#### A. API Design for Chatbot Integration
+```typescript
+// Simplified API endpoints for chatbot integration (no auth required)
+@Controller('api/chat')
+@UseGuards(OptionalAuthGuard) // Only applies auth if ENABLE_JWT_AUTH=true
+export class ChatController {
+  
+  @Post('message')
+  async handleMessage(@Body() messageDto: ChatMessageDto) {
+    // Handle incoming chatbot messages
+    return this.aiAgentService.processMessage(messageDto);
+  }
+  
+  @Post('webhook/:platform') // Support multiple chatbot platforms
+  async handleWebhook(
+    @Param('platform') platform: string,
+    @Body() webhookData: any
+  ) {
+    // Handle webhooks from different chatbot platforms
+    return this.chatbotService.processWebhook(platform, webhookData);
+  }
+}
+
+interface ChatMessageDto {
+  sessionId: string;
+  customerId?: string; // Optional for anonymous chats
+  message: string;
+  platform?: string; // 'whatsapp', 'telegram', 'web', etc.
+  language?: 'en' | 'ms' | 'zh';
+  metadata?: Record<string, any>;
+}
+```
+
+#### B. Session Management Without Redis
+```typescript
+// In-memory session management when Redis is disabled
+@Injectable()
+export class SessionService {
+  private sessions = new Map<string, ConversationContext>();
+  private readonly SESSION_TTL = 30 * 60 * 1000; // 30 minutes
+  
+  constructor(
+    private cacheService: CacheService,
+    private configService: ConfigService
+  ) {
+    // Clean up expired sessions every 5 minutes if using memory cache
+    if (!this.configService.get<boolean>('ENABLE_REDIS', false)) {
+      setInterval(() => this.cleanupExpiredSessions(), 5 * 60 * 1000);
+    }
+  }
+  
+  async getSession(sessionId: string): Promise<ConversationContext | null> {
+    return await this.cacheService.get(`session:${sessionId}`);
+  }
+  
+  async setSession(sessionId: string, context: ConversationContext): Promise<void> {
+    await this.cacheService.set(`session:${sessionId}`, context, this.SESSION_TTL / 1000);
+  }
+  
+  private cleanupExpiredSessions(): void {
+    // Only needed for in-memory cache
+    const now = Date.now();
+    for (const [key, session] of this.sessions.entries()) {
+      if (session.lastActivity && (now - session.lastActivity) > this.SESSION_TTL) {
+        this.sessions.delete(key);
+      }
+    }
+  }
+}
+```
+
+### 8. Quality & Reliability Features
+
+#### A. Error Handling & Resilience
+- **Graceful Degradation**: Fallback mechanisms for AI failures
+- **Circuit Breakers**: Prevent cascade failures
+- **Retry Mechanisms**: Smart retry logic with exponential backoff
+- **Health Checks**: Comprehensive system health monitoring
+- **Disaster Recovery**: Backup and recovery procedures
+
+#### B. Security Implementation
+- **API Rate Limiting**: Prevent abuse and ensure fair usage
+- **Input Sanitization**: Protect against injection attacks
+- **Audit Logging**: Track all sensitive operations
+- **Data Encryption**: Encrypt sensitive customer data
+- **GDPR Compliance**: Handle data privacy requirements
+
+#### C. Performance Optimization
+- **Caching Strategies**: Multi-layer caching (Redis, in-memory)
+- **Database Optimization**: Query optimization and indexing
+- **AI Response Caching**: Cache common AI responses
+- **CDN Integration**: Fast static asset delivery
+- **Load Balancing**: Horizontal scaling support
+
+### 9. Development Guidelines
+
+#### A. Code Quality
+- **TypeScript Strict Mode**: Full type safety
+- **ESLint + Prettier**: Code formatting and linting
+- **Unit Testing**: Jest with >90% coverage
+- **E2E Testing**: Comprehensive API testing
+- **Integration Testing**: Test external service integrations
+
+#### B. Documentation Standards
+- **API Documentation**: Complete Swagger documentation
+- **Code Comments**: Comprehensive inline documentation
+- **Architecture Decision Records**: Document design decisions
+- **Deployment Guides**: Step-by-step deployment instructions
+
+### 10. Deployment & DevOps
+
+#### A. Containerization
+- **Docker Setup**: Multi-stage Docker builds
+- **Docker Compose**: Local development environment
+- **Kubernetes**: Production orchestration (optional)
+
+#### B. CI/CD Pipeline
+- **Automated Testing**: Run tests on every commit
+- **Code Quality Checks**: Automated code review
+- **Deployment Automation**: Zero-downtime deployments
+- **Environment Management**: Separate dev/staging/production configs
+
+### 11. Monitoring & Observability
+
+#### A. Logging & Metrics
+- **Structured Logging**: JSON-formatted logs
+- **Metrics Collection**: Application and business metrics
+- **Alert Systems**: Proactive issue notification
+- **Dashboard Creation**: Real-time system monitoring
+
+#### B. Performance Monitoring
+- **Response Time Tracking**: API and AI response times
+- **Resource Usage**: Monitor CPU, memory, database performance
+- **User Experience**: Track customer satisfaction metrics
+
+## Malaysian Business Context Integration
+
+### Sales Conversation Framework:
+1. **Dynamic Persona System**: Configure sales agent personality, company context, and product focus through admin dashboard
+2. **8-Stage Conversation Management**: Track and optimize each stage of the Malaysian sales process
+3. **Language Mirroring**: Immediately detect and mirror customer's language preference (English/BM/Mandarin)
+4. **Cultural Response Engine**: Context-aware responses based on Malaysian festivals, weather, and local preferences
+5. **Objection Handling Database**: Pre-configured Malaysian-style responses for common sales objections
+6. **WhatsApp-Style Communication**: Short, conversational messages that feel natural in Malaysian chat culture
+
+### Cultural Considerations:
+1. **Communication Style**: Implement polite, respectful communication patterns for all three languages (English, Bahasa Malaysia, Mandarin)
+2. **Festival Awareness**: Handle major Malaysian festivals (Hari Raya, Chinese New Year, Deepavali, Christmas, Wesak Day)
+3. **Business Practices**: Understand Malaysian multicultural business relationship building
+4. **Local Terminology**: Use appropriate local business terms and phrases in all supported languages
+5. **Chinese Business Culture**: Incorporate understanding of Malaysian Chinese business practices and preferences
+
+### Compliance Requirements:
+1. **Data Protection**: Comply with Malaysian Personal Data Protection Act
+2. **Business Registration**: Support Malaysian business entity requirements
+3. **Tax Compliance**: Proper GST/SST handling and reporting
+4. **Consumer Protection**: Adhere to Malaysian consumer protection laws
+
+## Success Metrics
+- **Conversion Rate**: Track sales conversion from conversations
+- **Customer Satisfaction**: Measure customer experience scores
+- **Response Accuracy**: Monitor AI response quality
+- **System Uptime**: Maintain >99.9% availability
+- **Performance**: Sub-2-second response times
+- **Scalability**: Handle concurrent conversations effectively
+
+## Deliverables Expected
+1. Complete NestJS application with all modules
+2. Database schema with migrations
+3. API documentation with examples
+4. Deployment configurations
+5. Testing suite with comprehensive coverage
+6. Admin dashboard for system management
+7. Customer-facing chat interface
+8. Integration guides for third-party services
+
+Build this system with enterprise-grade quality, focusing on scalability, maintainability, and exceptional user experience for Malaysian customers.
