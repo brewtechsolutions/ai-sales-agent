@@ -58,14 +58,21 @@ Create a multi-tenant AI-powered chatbot SaaS platform with WhatsApp/Telegram in
 
 ### 2. COMPANY ONBOARDING & SETUP
 
-#### A. Basic Info
+#### A. Basic Info & Localization
 - Company name, logo, contact details
-- Timezone, business hours
+- **Country** (e.g., Malaysia, Singapore, Indonesia, etc.)
+- **Preferred Language** (e.g., English, Bahasa Malaysia, Mandarin, Tamil, etc.)
+- **Additional Languages** (multi-language support for customers)
+- Timezone (auto-set based on country, but can be overridden)
+- Business hours (with timezone awareness)
+- Currency (auto-set based on country: MYR, SGD, IDR, etc.)
+- Date format preferences (DD/MM/YYYY, MM/DD/YYYY, etc.)
 - Industry category selection
 
 #### B. Industry Category Selection (Critical for AI)
 Options:
 - E-commerce
+- Retailer
 - Real Estate  
 - Education/Courses
 - Healthcare
@@ -124,6 +131,40 @@ Options:
 - Agent feedback loop (rate AI suggestions 1-5 stars)
 - A/B testing response variations
 - Update knowledge base automatically
+
+#### E. Per-Company AI Model Training & Configuration (CRITICAL)
+**Each company has its own trained AI model with unique prompts and behavior.**
+
+**Company Admin Capabilities:**
+- **Configure AI System Prompt**: Customize the base AI personality and instructions
+- **Train AI Model**: Upload training data, successful conversations, and examples
+- **Test AI Model**: Interactive testing interface to test prompts before deploying
+- **Monitor AI Performance**: Track AI suggestion quality, usage rates, and effectiveness
+- **Version Control**: Save and revert to previous AI model versions
+- **A/B Testing**: Test different prompt variations and compare results
+- **Language-Specific Training**: Train AI in company's preferred language(s)
+- **Cultural Adaptation**: Configure AI to understand local customs, greetings, and communication styles
+
+**AI Model Configuration Options:**
+- Base system prompt (fully customizable)
+- Response style (formal, casual, friendly, professional)
+- Language preferences (primary + secondary languages)
+- Cultural context (local customs, holidays, business practices)
+- Industry-specific knowledge injection
+- Product catalog integration
+- FAQ and training material weighting
+- Success pattern learning rate
+- Temperature and creativity settings
+- Max response length
+- Auto-response triggers
+
+**AI Model Testing Interface:**
+- Test prompt builder with live preview
+- Simulate conversations with different customer types
+- Test responses in different languages
+- Compare multiple prompt versions side-by-side
+- Export test results and metrics
+- Save test scenarios for future reference
 
 ### 4. CONVERSATION ASSIGNMENT & MONITORING
 
@@ -247,6 +288,153 @@ Options:
 - Flow templates (common automation sequences)
 - Global templates (by Super Admin) + company-specific
 
+#### Success Case Templates (CRITICAL - AI Priority System)
+**Purpose**: Pre-defined successful conversation patterns that AI checks FIRST before generating responses.
+
+**Template Structure**:
+Each template contains a conversation flow showing:
+1. **Customer Message** (what customer says)
+2. **Agent Response** (how to reply - the successful way)
+3. **Context** (when to use this template)
+4. **Expected Outcome** (what this response achieves)
+5. **Follow-up Actions** (next steps)
+
+**Template Types**:
+- **Greeting Templates**: First contact scenarios
+- **Objection Handling**: Price objections, product concerns, timing issues
+- **Product Inquiry**: Questions about specific products
+- **Closing Templates**: How to close the sale
+- **Follow-up Templates**: Re-engaging cold leads
+- **Language-Specific**: Templates in English, Chinese (zh), Bahasa Malaysia (bm)
+
+**Super Admin Capabilities**:
+- Create default success case templates (global templates)
+- Organize by industry category
+- Organize by language (en, zh, bm)
+- Mark templates as "recommended" or "best practice"
+- Version control for templates
+- Analytics on template effectiveness
+
+**Company Admin Capabilities**:
+- **View all global templates** (created by Super Admin)
+- **Enable/Disable templates** for their company
+- **Create company-specific templates** (override or supplement global ones)
+- **Select preferred templates** (mark as "use this first")
+- **Test templates** with sample conversations
+- **View template usage stats** (how often AI used each template)
+- **Customize templates** (edit global templates for company use)
+- **Organize by language** (select which language templates to use)
+
+**AI Priority System**:
+When generating a response, AI checks in this order:
+1. **First**: Check if customer message matches any enabled success case template
+2. **If match found**: Use template response (with personalization)
+3. **If no match**: Fall back to trained AI model generation
+4. **Template matching**: Based on:
+   - Customer message keywords/intent
+   - Conversation context
+   - Customer behavior score
+   - Language detected
+
+**Template Example Structure**:
+```json
+{
+  "id": "template_001",
+  "name": "Price Objection - E-commerce",
+  "category": "objection_handling",
+  "industry": "E-commerce",
+  "language": "en",
+  "is_global": true,
+  "is_enabled": true,
+  "priority": 1,
+  "scenarios": [
+    {
+      "customer_message_pattern": ["expensive", "too much", "cheaper", "discount"],
+      "customer_message_examples": [
+        "This is too expensive",
+        "Can you give me a discount?",
+        "Is there a cheaper option?"
+      ],
+      "agent_response": "I understand price is important. Let me show you the value you're getting...",
+      "context": "When customer objects to price",
+      "expected_outcome": "Overcome price objection, highlight value",
+      "follow_up": "Offer payment plan or bundle discount if available"
+    }
+  ],
+  "localized_versions": {
+    "zh": {
+      "customer_message_examples": ["太贵了", "可以便宜点吗", "有折扣吗"],
+      "agent_response": "我理解价格很重要。让我向您展示您将获得的价值..."
+    },
+    "bm": {
+      "customer_message_examples": ["mahal sangat", "boleh murah sikit", "ada diskaun tak"],
+      "agent_response": "Saya faham harga penting. Biar saya tunjukkan nilai yang anda dapat..."
+    }
+  },
+  "usage_count": 0,
+  "success_rate": 0.0,
+  "created_by": "super_admin",
+  "created_at": "2024-01-01"
+}
+```
+
+---
+
+## MALAYSIA-SPECIFIC CONSIDERATIONS
+
+Since the platform is designed for Malaysia (and expandable to other countries), special attention should be paid to:
+
+### Language Support
+- **Primary Languages**: English, Bahasa Malaysia (Malay), Mandarin Chinese, Tamil
+- **Language Detection**: Auto-detect customer's preferred language from messages
+- **Code-Switching**: Many Malaysians mix languages (e.g., "Boleh saya tengok the product?"). AI should understand and respond appropriately
+- **Formal vs Informal**: Use appropriate formality based on context
+
+### Cultural Context
+- **Greetings**: 
+  - "Selamat pagi" (Good morning), "Selamat petang" (Good afternoon)
+  - "Terima kasih" (Thank you), "Sama-sama" (You're welcome)
+- **Respect**: Always be polite and respectful (important in Malaysian culture)
+- **Multi-ethnic Awareness**: Understand different cultural backgrounds (Malay, Chinese, Indian, etc.)
+- **Sensitive Topics**: Avoid religion and politics
+
+### Business Practices
+- **Business Hours**: Typically 9am-6pm, but varies by industry
+- **Public Holidays**: Account for Malaysian public holidays (Hari Raya, Chinese New Year, Deepavali, etc.)
+- **Payment Methods**: 
+  - FPX (Financial Process Exchange)
+  - GrabPay, Touch 'n Go eWallet
+  - Bank transfers (Maybank, CIMB, Public Bank, etc.)
+  - Credit cards (Visa, Mastercard)
+- **Shipping**: 
+  - Pos Laju (national postal service)
+  - J&T Express, Shopee Express, Lazada Express
+  - Local courier services
+- **Currency**: Malaysian Ringgit (MYR), format: RM 100.00
+
+### Real Estate Specific (Malaysia)
+- **Property Types**: 
+  - Freehold vs Leasehold (important distinction)
+  - Bumi lot vs Non-Bumi lot
+  - Service apartments, condominiums, landed properties
+- **Location Importance**: 
+  - Near LRT/MRT stations
+  - Good schools (especially international schools)
+  - Shopping malls (KLCC, Pavilion, etc.)
+  - Accessibility to highways
+
+### Education Specific (Malaysia)
+- **Accreditations**: MQA (Malaysian Qualifications Agency)
+- **Student Loans**: PTPTN (Perbadanan Tabung Pendidikan Tinggi Nasional)
+- **Qualifications**: SPM, STPM, A-Levels, Foundation, Diploma, Degree
+- **Institutions**: Public universities, private universities, colleges
+
+### E-commerce Specific (Malaysia)
+- **Popular Platforms**: Shopee, Lazada, Zalora
+- **Delivery Expectations**: Fast delivery (1-3 days) is expected
+- **Return Policies**: Clear return/refund policies important
+- **Customer Service**: 24/7 support appreciated
+
 ---
 
 ## DATABASE SCHEMA
@@ -262,6 +450,13 @@ companies (
   webhook_secret VARCHAR(255),
   subscription_plan VARCHAR(50),
   status VARCHAR(20), -- active, suspended, trial
+  -- Localization fields
+  country VARCHAR(100), -- Malaysia, Singapore, etc.
+  preferred_language VARCHAR(50), -- en, ms, zh, ta, etc.
+  additional_languages JSONB, -- ["en", "ms"] for multi-language support
+  currency VARCHAR(3), -- MYR, SGD, IDR, etc.
+  timezone VARCHAR(50), -- Asia/Kuala_Lumpur, etc.
+  date_format VARCHAR(20), -- DD/MM/YYYY, MM/DD/YYYY, etc.
   settings JSONB, -- ai_settings, business_hours, etc
   created_at TIMESTAMP,
   updated_at TIMESTAMP
@@ -291,6 +486,49 @@ company_settings (
   auto_assign_enabled BOOLEAN,
   assignment_strategy VARCHAR(50), -- round_robin, manual, workload
   business_hours JSONB,
+  created_at TIMESTAMP
+)
+
+-- AI Model Configuration & Training (Per Company)
+ai_model_configs (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  version VARCHAR(50), -- v1.0, v1.1, etc.
+  is_active BOOLEAN DEFAULT false, -- only one active per company
+  system_prompt TEXT, -- base AI personality and instructions
+  response_style VARCHAR(50), -- formal, casual, friendly, professional
+  language_config JSONB, -- {primary: "en", secondary: ["ms"], cultural_context: {...}}
+  temperature DECIMAL(2,1) DEFAULT 0.7,
+  max_tokens INT DEFAULT 1000,
+  training_data_ids JSONB, -- references to training_materials used
+  success_patterns_weight DECIMAL(3,2) DEFAULT 0.3, -- how much to weight successful patterns
+  product_catalog_weight DECIMAL(3,2) DEFAULT 0.2,
+  faq_weight DECIMAL(3,2) DEFAULT 0.2,
+  training_materials_weight DECIMAL(3,2) DEFAULT 0.3,
+  auto_response_enabled BOOLEAN DEFAULT false,
+  auto_response_triggers JSONB, -- conditions for auto-response
+  test_results JSONB, -- stored test scenarios and results
+  performance_metrics JSONB, -- usage_rate, avg_rating, effectiveness_score
+  created_by UUID REFERENCES users(id), -- which admin created this version
+  created_at TIMESTAMP,
+  deployed_at TIMESTAMP, -- when this version was activated
+  notes TEXT -- admin notes about this version
+)
+
+-- AI Model Test Scenarios
+ai_model_tests (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  model_config_id UUID REFERENCES ai_model_configs(id),
+  test_name VARCHAR(255),
+  scenario_description TEXT,
+  customer_message TEXT,
+  expected_response_type VARCHAR(100), -- should_mention_product, should_be_friendly, etc.
+  actual_response TEXT, -- AI generated response
+  test_result VARCHAR(20), -- passed, failed, needs_review
+  test_metrics JSONB, -- response_time, relevance_score, language_match, etc.
+  admin_feedback TEXT,
+  created_by UUID REFERENCES users(id),
   created_at TIMESTAMP
 )
 
@@ -452,7 +690,55 @@ ai_suggestions (
   created_at TIMESTAMP
 )
 
--- Templates
+-- Success Case Templates (AI Priority System)
+success_case_templates (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id), -- NULL for global templates (created by super admin)
+  name VARCHAR(255),
+  description TEXT,
+  category VARCHAR(100), -- greeting, objection_handling, product_inquiry, closing, follow_up
+  industry_category VARCHAR(50), -- E-commerce, Real Estate, etc. (NULL for all industries)
+  language VARCHAR(10), -- en, zh, bm
+  is_global BOOLEAN DEFAULT false, -- created by super admin
+  is_recommended BOOLEAN DEFAULT false, -- marked as best practice by super admin
+  priority INT DEFAULT 0, -- higher number = checked first
+  -- Template structure
+  customer_message_patterns JSONB, -- ["expensive", "too much", "cheaper"]
+  customer_message_examples JSONB, -- ["This is too expensive", "Can you give me discount?"]
+  agent_response TEXT, -- The successful response template
+  agent_response_variations JSONB, -- Alternative responses
+  context_description TEXT, -- When to use this template
+  expected_outcome TEXT, -- What this response achieves
+  follow_up_actions TEXT, -- Next steps after this response
+  -- Localized versions (for en, zh, bm)
+  localized_versions JSONB, -- {zh: {...}, bm: {...}}
+  -- Metadata
+  usage_count INT DEFAULT 0,
+  success_rate DECIMAL(5,2) DEFAULT 0.0, -- percentage of successful outcomes
+  effectiveness_score DECIMAL(3,2) DEFAULT 0.0, -- 0.0 to 1.0
+  created_by UUID REFERENCES users(id), -- super_admin or company_admin
+  version INT DEFAULT 1, -- template version number
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
+
+-- Company Template Selections (which templates each company uses)
+company_template_selections (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  template_id UUID REFERENCES success_case_templates(id),
+  is_enabled BOOLEAN DEFAULT true, -- company can enable/disable templates
+  is_preferred BOOLEAN DEFAULT false, -- mark as "use this first"
+  priority INT DEFAULT 0, -- company-specific priority override
+  custom_modifications JSONB, -- company can customize template response
+  usage_count INT DEFAULT 0, -- how many times this company used this template
+  last_used_at TIMESTAMP,
+  created_at TIMESTAMP,
+  UNIQUE(company_id, template_id)
+)
+
+-- Legacy Templates (for backward compatibility)
 templates (
   id UUID PRIMARY KEY,
   company_id UUID REFERENCES companies(id), -- NULL for global templates
@@ -482,6 +768,14 @@ CREATE INDEX idx_conversations_company_id ON conversations(company_id);
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_contacts_company_id ON contacts(company_id);
 CREATE INDEX idx_contacts_behavior_score ON contacts(behavior_score);
+CREATE INDEX idx_ai_model_configs_company_active ON ai_model_configs(company_id, is_active);
+CREATE INDEX idx_ai_model_tests_company_model ON ai_model_tests(company_id, model_config_id);
+CREATE INDEX idx_companies_country ON companies(country);
+CREATE INDEX idx_success_case_templates_language ON success_case_templates(language);
+CREATE INDEX idx_success_case_templates_industry ON success_case_templates(industry_category);
+CREATE INDEX idx_success_case_templates_global_active ON success_case_templates(is_global, is_active);
+CREATE INDEX idx_company_template_selections_enabled ON company_template_selections(company_id, is_enabled);
+CREATE INDEX idx_company_template_selections_preferred ON company_template_selections(company_id, is_preferred, priority);
 ```
 
 ---
@@ -524,6 +818,43 @@ company.training.createFAQ(faqData)
 company.training.listMaterials()
 company.training.updateKnowledgeBase()
 
+// AI Model Configuration & Training (Company Admin)
+company.ai.getActiveModel() // get current active AI model config
+company.ai.listModelVersions() // list all model versions
+company.ai.createModelVersion(configData) // create new model version
+company.ai.updateModelVersion(versionId, updates) // update model config
+company.ai.activateModelVersion(versionId) // deploy/activate a version
+company.ai.revertToVersion(versionId) // revert to previous version
+company.ai.deleteModelVersion(versionId) // delete unused version
+company.ai.testModel(versionId, testScenario) // test AI model with scenario
+company.ai.listTestResults(versionId?) // get test results for model
+company.ai.getModelPerformance(versionId?) // get performance metrics
+company.ai.exportModelConfig(versionId) // export model config as JSON
+company.ai.importModelConfig(configJson) // import model config
+
+// Success Case Templates (Super Admin)
+superAdmin.templates.list() // list all global templates
+superAdmin.templates.create(templateData) // create global template
+superAdmin.templates.update(templateId, data) // update global template
+superAdmin.templates.delete(templateId) // delete global template
+superAdmin.templates.markRecommended(templateId) // mark as best practice
+superAdmin.templates.getAnalytics(templateId?) // template usage analytics
+
+// Success Case Templates (Company Admin)
+company.templates.listGlobal() // view all global templates (from super admin)
+company.templates.listCompany() // list company-specific templates
+company.templates.listEnabled() // list enabled templates for this company
+company.templates.enable(templateId) // enable a global template for company
+company.templates.disable(templateId) // disable a template
+company.templates.setPreferred(templateId, isPreferred) // mark as preferred
+company.templates.setPriority(templateId, priority) // set company-specific priority
+company.templates.createCompany(templateData) // create company-specific template
+company.templates.updateCompany(templateId, data) // update company template
+company.templates.customize(templateId, modifications) // customize global template for company
+company.templates.test(templateId, customerMessage) // test template with sample message
+company.templates.getUsageStats(templateId?) // get template usage statistics
+
+// Legacy Templates (backward compatibility)
 company.templates.list(type?)
 company.templates.create(templateData)
 company.templates.update(templateId, data)
@@ -584,46 +915,145 @@ ai.recommendProducts(conversationId)
 
 ## AI INTEGRATION STRATEGY
 
-### 1. Context Building Per Company
+### 1. Context Building Per Company (With Localization & Custom Model)
 
-When generating AI responses, build context:
+When generating AI responses, build context using company's trained model:
 
 ```javascript
+// Get active AI model configuration for company
+const aiModel = await db.ai_model_configs.findFirst({
+  where: {
+    company_id: companyId,
+    is_active: true
+  }
+})
+
+// Build localized context
 const aiContext = {
-  system: `You are an AI sales assistant for ${company.name} in the ${company.category} industry.`,
+  // Use company's custom system prompt (trained model)
+  system: aiModel.system_prompt || `You are an AI sales assistant for ${company.name} in the ${company.category} industry.`,
   
-  brandVoice: company.settings.brand_voice, // Professional, Friendly, etc
+  // Localization
+  country: company.country, // Malaysia, Singapore, etc.
+  language: company.preferred_language, // en, ms, zh, ta
+  additionalLanguages: company.additional_languages, // ["ms", "zh"]
+  currency: company.currency, // MYR, SGD, etc.
+  timezone: company.timezone,
+  culturalContext: aiModel.language_config?.cultural_context || {}, // local customs, greetings
+  
+  // Company settings
+  brandVoice: company.settings.brand_voice,
   tone: company.settings.response_tone,
+  responseStyle: aiModel.response_style, // from model config
   
-  products: await getCompanyProducts(companyId), // full catalog
+  // Weighted training data
+  products: await getCompanyProducts(companyId), // weighted by product_catalog_weight
+  training: await getTrainingMaterials(companyId), // weighted by training_materials_weight
+  faqs: await getCompanyFAQs(companyId), // weighted by faq_weight
+  successfulPatterns: await getSuccessfulPatterns(companyId), // weighted by success_patterns_weight
   
-  training: await getTrainingMaterials(companyId), // FAQs, guidelines
+  // AI Model settings
+  temperature: aiModel.temperature,
+  maxTokens: aiModel.max_tokens,
   
-  successfulPatterns: await getSuccessfulPatterns(companyId), // past wins
-  
+  // Current conversation
   currentConversation: {
     contact: contactInfo,
     history: last10Messages,
     behaviorScore: contact.behavior_score,
-    assignedAgent: agentInfo
+    assignedAgent: agentInfo,
+    detectedLanguage: detectLanguage(last10Messages) // auto-detect customer language
   }
 }
 
-// Send to Claude API
+// Build localized prompt with cultural context
+const localizedPrompt = buildLocalizedPrompt(aiContext, company, aiModel)
+
+// Send to Claude API with company's trained model context
 const response = await fetch("https://api.anthropic.com/v1/messages", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: { 
+    "Content-Type": "application/json",
+    "x-api-key": process.env.CLAUDE_API_KEY
+  },
   body: JSON.stringify({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 1000,
+    max_tokens: aiModel.max_tokens,
+    temperature: aiModel.temperature,
     messages: [
       { 
+        role: "system",
+        content: aiModel.system_prompt
+      },
+      { 
         role: "user", 
-        content: `${JSON.stringify(aiContext)}\n\nGenerate a helpful response.`
+        content: localizedPrompt
       }
     ]
   })
 })
+
+function buildLocalizedPrompt(context, company, aiModel) {
+  // Detect customer's language preference
+  const customerLanguage = detectCustomerLanguage(context.currentConversation.history)
+  
+  // Build language-specific instructions
+  let languageInstructions = `Respond in ${company.preferred_language}`
+  if (customerLanguage && customerLanguage !== company.preferred_language) {
+    languageInstructions += `, but the customer is using ${customerLanguage}, so adapt accordingly.`
+  }
+  
+  // Add cultural context for Malaysia
+  let culturalContext = ''
+  if (company.country === 'Malaysia') {
+    culturalContext = `
+CULTURAL CONTEXT (Malaysia):
+- Use appropriate greetings: "Selamat pagi" (morning), "Terima kasih" (thank you)
+- Be respectful and polite (important in Malaysian culture)
+- Understand local business hours (9am-6pm typically)
+- Currency: ${company.currency} (Ringgit)
+- Common phrases: "Boleh" (can), "Tak apa" (no problem), "Betul" (correct)
+- Be aware of multi-ethnic context (Malay, Chinese, Indian, etc.)
+- Avoid sensitive topics (religion, politics)
+`
+  }
+  
+  return `
+${languageInstructions}
+
+${culturalContext}
+
+COMPANY: ${company.name}
+INDUSTRY: ${company.industry_category}
+BRAND VOICE: ${context.brandVoice}
+RESPONSE STYLE: ${aiModel.response_style}
+
+AVAILABLE PRODUCTS:
+${context.products.map(p => `- ${p.name}: ${p.description} (${context.currency} ${p.price})`).join('\n')}
+
+TRAINING MATERIALS:
+${context.training.slice(0, 5).map(t => t.content).join('\n\n')}
+
+SUCCESSFUL PATTERNS (learn from these):
+${context.successfulPatterns.map(p => p.pattern_summary).join('\n\n')}
+
+CONVERSATION HISTORY:
+${context.currentConversation.history.map(m => 
+  `${m.sender_type === 'contact' ? 'Customer' : 'Agent'}: ${m.content}`
+).join('\n')}
+
+CUSTOMER BEHAVIOR SCORE: ${context.currentConversation.behaviorScore}/100
+
+Generate a helpful, natural response that:
+1. Addresses the customer's last message directly
+2. Uses appropriate language and cultural context
+3. Suggests relevant products if appropriate
+4. Uses the brand voice and response style specified
+5. Applies successful patterns learned from past conversations
+6. Moves the conversation toward a sale if customer seems ready (green score)
+
+Response:`
+}
 ```
 
 ### 2. Behavior Scoring Algorithm
@@ -793,27 +1223,163 @@ async function analyzeConversationPattern(conversation) {
 }
 ```
 
-### 5. Category-Specific AI Prompts
+### 5. AI Model Testing & Monitoring
+
+```typescript
+// Test AI model with a scenario
+async function testAIModel(companyId: string, modelVersionId: string, testScenario: {
+  customerMessage: string,
+  expectedBehavior: string,
+  language?: string
+}) {
+  const company = await db.companies.findUnique({
+    where: { id: companyId },
+    include: { settings: true }
+  })
+  
+  const modelConfig = await db.ai_model_configs.findUnique({
+    where: { id: modelVersionId }
+  })
+  
+  // Build test context
+  const testContext = buildAIContext(company, modelConfig, {
+    messages: [{ content: testScenario.customerMessage, sender_type: 'contact' }]
+  })
+  
+  // Generate response
+  const startTime = Date.now()
+  const response = await generateAIResponse(testContext, modelConfig)
+  const responseTime = Date.now() - startTime
+  
+  // Analyze response quality
+  const analysis = await analyzeResponseQuality(response, testScenario)
+  
+  // Store test result
+  const testResult = await db.ai_model_tests.create({
+    data: {
+      company_id: companyId,
+      model_config_id: modelVersionId,
+      test_name: `Test ${new Date().toISOString()}`,
+      scenario_description: testScenario.expectedBehavior,
+      customer_message: testScenario.customerMessage,
+      actual_response: response,
+      test_result: analysis.passed ? 'passed' : 'failed',
+      test_metrics: {
+        response_time: responseTime,
+        relevance_score: analysis.relevanceScore,
+        language_match: analysis.languageMatch,
+        cultural_appropriateness: analysis.culturalScore,
+        tone_match: analysis.toneMatch
+      }
+    }
+  })
+  
+  return testResult
+}
+
+// Monitor AI model performance
+async function getModelPerformance(companyId: string, modelVersionId?: string) {
+  const whereClause: any = { company_id: companyId }
+  if (modelVersionId) {
+    whereClause.model_config_id = modelVersionId
+  }
+  
+  // Get all suggestions for this model
+  const suggestions = await db.ai_suggestions.findMany({
+    where: {
+      conversation: {
+        company_id: companyId
+      },
+      created_at: {
+        gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // last 30 days
+      }
+    },
+    include: {
+      conversation: true
+    }
+  })
+  
+  // Calculate metrics
+  const totalSuggestions = suggestions.length
+  const usedSuggestions = suggestions.filter(s => s.was_used).length
+  const usageRate = totalSuggestions > 0 ? (usedSuggestions / totalSuggestions) * 100 : 0
+  
+  const ratedSuggestions = suggestions.filter(s => s.agent_rating !== null)
+  const avgRating = ratedSuggestions.length > 0
+    ? ratedSuggestions.reduce((sum, s) => sum + (s.agent_rating || 0), 0) / ratedSuggestions.length
+    : 0
+  
+  // Update model performance metrics
+  if (modelVersionId) {
+    await db.ai_model_configs.update({
+      where: { id: modelVersionId },
+      data: {
+        performance_metrics: {
+          usage_rate: usageRate,
+          avg_rating: avgRating,
+          total_suggestions: totalSuggestions,
+          used_suggestions: usedSuggestions,
+          last_updated: new Date()
+        }
+      }
+    })
+  }
+  
+  return {
+    usageRate,
+    avgRating,
+    totalSuggestions,
+    usedSuggestions,
+    ratedSuggestions: ratedSuggestions.length
+  }
+}
+```
+
+### 6. Category-Specific AI Prompts (With Localization)
 
 ```javascript
 const categoryPrompts = {
-  'E-commerce': `Focus on product benefits, create urgency with limited stock or discounts. 
-  Common objections: Price, shipping time, return policy.
-  Closing: "Shall I send you the payment link?"`,
+  'E-commerce': {
+    default: `Focus on product benefits, create urgency with limited stock or discounts. 
+    Common objections: Price, shipping time, return policy.
+    Closing: "Shall I send you the payment link?"`,
+    malaysia: `Focus on product benefits, create urgency with limited stock or discounts.
+    Common objections: Price, shipping time, return policy.
+    Closing: "Boleh saya hantar link pembayaran?" (Can I send you the payment link?)
+    Use local payment methods: FPX, GrabPay, Touch 'n Go, etc.
+    Shipping: Mention Pos Laju, J&T, Shopee Express for local delivery.`
+  },
   
-  'Real Estate': `Emphasize location, ROI, and viewing opportunities.
-  Common objections: Price, location, timing.
-  Closing: "Would you like to schedule a viewing?"`,
+  'Real Estate': {
+    default: `Emphasize location, ROI, and viewing opportunities.
+    Common objections: Price, location, timing.
+    Closing: "Would you like to schedule a viewing?"`,
+    malaysia: `Emphasize location, ROI, and viewing opportunities.
+    Common objections: Price, location, timing.
+    Closing: "Boleh kita buat appointment untuk tengok property?" (Can we schedule a viewing?)
+    Mention: Near LRT/MRT, good schools, shopping malls (important in Malaysia).
+    Understand: Freehold vs Leasehold, Bumi lot considerations.`
+  },
   
-  'Education': `Highlight outcomes, testimonials, and flexible payment plans.
-  Common objections: Time commitment, ROI, prerequisites.
-  Closing: "Can I reserve your spot in the next cohort?"`,
+  'Education': {
+    default: `Highlight outcomes, testimonials, and flexible payment plans.
+    Common objections: Time commitment, ROI, prerequisites.
+    Closing: "Can I reserve your spot in the next cohort?"`,
+    malaysia: `Highlight outcomes, testimonials, and flexible payment plans.
+    Common objections: Time commitment, ROI, prerequisites.
+    Closing: "Boleh saya reserve tempat untuk cohort seterusnya?" (Can I reserve your spot?)
+    Mention: MQA accreditation, PTPTN loan eligibility (if applicable).
+    Understand: Local education system, SPM/STPM qualifications.`
+  },
   
   // ... more categories
 }
 
-function getCategoryPrompt(category) {
-  return categoryPrompts[category] || categoryPrompts['default']
+function getCategoryPrompt(category, country = 'default') {
+  const prompts = categoryPrompts[category]
+  if (!prompts) return categoryPrompts['default']?.default || ''
+  
+  return prompts[country.toLowerCase()] || prompts.default
 }
 ```
 
@@ -828,6 +1394,41 @@ function getCategoryPrompt(category) {
   /admin/companies/:id - Company details
 /admin/analytics - Platform-wide metrics
 /admin/settings - System configuration
+
+/admin/templates ← GLOBAL SUCCESS CASE TEMPLATES
+  - Template Library
+    * Create new global templates
+    * Edit existing templates
+    * Delete templates
+    * Duplicate templates
+    * Version control
+  
+  - Template Builder
+    * Template name and description
+    * Category selection (greeting, objection, closing, etc.)
+    * Industry category (or "All Industries")
+    * Language selection (en, zh, bm)
+    * Customer message patterns (keywords to match)
+    * Customer message examples
+    * Agent response template
+    * Agent response variations
+    * Context description
+    * Expected outcome
+    * Follow-up actions
+    * Localized versions (zh, bm translations)
+  
+  - Template Management
+    * Mark as "Recommended" (best practice)
+    * Set priority levels
+    * Organize by industry
+    * Organize by language
+    * Template analytics (usage across all companies)
+    * Effectiveness tracking
+  
+  - Template Testing
+    * Test templates with sample messages
+    * Preview responses in all languages
+    * Validate template matching logic
 ```
 
 ### Company Admin Portal (`/company`)
@@ -885,11 +1486,95 @@ function getCategoryPrompt(category) {
   - Sample conversations
   - Knowledge base status
 
-/company/templates
-  - Message templates
-  - Flow templates
-  - Package templates
-  - Category organization
+/company/ai-model ← AI MODEL CONFIGURATION & TRAINING
+  - Active Model Overview
+    * Current version info
+    * Performance metrics dashboard
+    * Quick stats (usage rate, avg rating, effectiveness)
+  
+  - Model Configuration
+    * System prompt editor (rich text with preview)
+    * Response style selector
+    * Language settings (primary + secondary)
+    * Cultural context configurator
+    * Temperature and creativity sliders
+    * Training data weighting controls
+    * Auto-response trigger settings
+  
+  - Model Versions
+    * List all versions (active highlighted)
+    * Version comparison view
+    * Create new version from current
+    * Duplicate existing version
+    * Activate/deploy version
+    * Revert to previous version
+    * Delete unused versions
+  
+  - Test & Monitor
+    * Interactive test interface
+      - Test prompt builder
+      - Simulate customer messages
+      - Live AI response preview
+      - Test in multiple languages
+      - Compare versions side-by-side
+    * Test scenario library
+      - Save common test scenarios
+      - Run batch tests
+      - View test history
+    * Performance monitoring
+      - AI suggestion usage rate
+      - Agent ratings (1-5 stars)
+      - Response quality metrics
+      - Language accuracy
+      - Cultural appropriateness score
+      - Conversion impact analysis
+    * A/B Testing
+      - Create test variants
+      - Deploy to percentage of conversations
+      - Compare results
+      - Statistical significance analysis
+
+/company/templates ← SUCCESS CASE TEMPLATES (AI Priority System)
+  - Global Templates Library
+    * View all templates created by Super Admin
+    * Filter by: Industry, Language (en/zh/bm), Category
+    * Search templates
+    * Preview template structure
+    * See template effectiveness stats
+  
+  - Enabled Templates
+    * List of templates enabled for this company
+    * Enable/Disable toggle for each template
+    * Set priority (which templates checked first)
+    * Mark as "Preferred" (use this first)
+    * View usage statistics per template
+  
+  - Template Configuration
+    * Customize global templates for company use
+    * Create company-specific templates
+    * Edit template responses
+    * Add company-specific variations
+    * Test templates with sample messages
+  
+  - Template Testing
+    * Test interface: Enter customer message
+    * See which template matches (if any)
+    * Preview template response
+    * Test in different languages (en, zh, bm)
+    * Compare multiple template responses
+  
+  - Template Analytics
+    * Usage count per template
+    * Success rate (conversion when template used)
+    * Effectiveness score
+    * Most used templates
+    * Templates by language breakdown
+  
+  - Legacy Templates (backward compatibility)
+    * Message templates
+    * Flow templates
+    * Package templates
+    * Category organization
 
 /company/analytics
   - Company overview
@@ -1000,8 +1685,10 @@ function getCategoryPrompt(category) {
 - [ ] User management (create, list, delete agents)
 - [ ] Basic dashboard shells
 
-### Phase 2: Company Setup (Week 2-3)
+### Phase 2: Company Setup & Localization (Week 2-3)
 - [ ] Onboarding wizard UI
+- [ ] **Localization setup** (country, language, currency, timezone)
+- [ ] **Country-specific defaults** (Malaysia, Singapore, etc.)
 - [ ] Category selection system
 - [ ] Product catalog CRUD
 - [ ] Image upload to S3/CDN
@@ -1028,23 +1715,61 @@ function getCategoryPrompt(category) {
 - [ ] Transfer request workflow
 - [ ] Assignment history tracking
 
-### Phase 5: AI Training System (Week 5-6)
+### Phase 5: AI Training System & Model Configuration (Week 5-6)
 - [ ] Document upload (PDF, TXT, DOCX parsing)
 - [ ] FAQ builder interface
 - [ ] Brand voice configurator
 - [ ] Knowledge base processing
-- [ ] Category-based prompt templates
+- [ ] Category-based prompt templates (with country-specific variants)
 - [ ] Training material status tracking
+- [ ] **Success Case Templates System (CRITICAL - AI Priority)**
+  - [ ] Database schema for success_case_templates and company_template_selections
+  - [ ] Super Admin: Template builder interface
+  - [ ] Super Admin: Create global templates (en, zh, bm)
+  - [ ] Super Admin: Template management (edit, delete, mark recommended)
+  - [ ] Company Admin: View global templates library
+  - [ ] Company Admin: Enable/disable templates for company
+  - [ ] Company Admin: Set template priority and preferences
+  - [ ] Company Admin: Customize templates for company use
+  - [ ] Company Admin: Create company-specific templates
+  - [ ] Template testing interface (test with sample messages)
+  - [ ] Template matching algorithm (pattern and keyword matching)
+  - [ ] Template personalization system
+  - [ ] Template usage tracking and analytics
+- [ ] **AI Model Configuration System**
+  - [ ] Model version management (create, update, activate, revert)
+  - [ ] System prompt editor with preview
+  - [ ] Training data weighting controls
+  - [ ] Language and cultural context configurator
+  - [ ] Model performance tracking
+- [ ] **AI Model Testing Interface**
+  - [ ] Interactive test scenario builder
+  - [ ] Live response preview
+  - [ ] Multi-language testing (en, zh, bm)
+  - [ ] Test result storage and comparison
+  - [ ] A/B testing framework
 
-### Phase 6: AI Integration (Week 6-8)
+### Phase 6: AI Integration with Trained Models (Week 6-8)
 - [ ] Claude API integration setup
-- [ ] Context builder (company + products + training)
-- [ ] Behavior scoring algorithm
+- [ ] **AI Response Generation with Template Priority System**
+  - [ ] **STEP 1: Check success case templates first**
+    - [ ] Template matching algorithm (pattern + keyword matching)
+    - [ ] Language-aware template selection (en, zh, bm)
+    - [ ] Industry-specific template filtering
+    - [ ] Priority-based template selection (preferred > priority > default)
+    - [ ] Template response personalization
+    - [ ] Template usage tracking
+  - [ ] **STEP 2: Fall back to trained AI model if no template match**
+    - [ ] Context builder using trained AI model (company's custom prompt)
+    - [ ] Localization integration (language detection, cultural context)
+    - [ ] Weighted training data (according to model config)
+    - [ ] Model version tracking (which version generated each suggestion)
+- [ ] Behavior scoring algorithm (with language-aware keywords for en, zh, bm)
 - [ ] Real-time score calculation (after every 3 messages)
-- [ ] AI response suggestion engine
+- [ ] AI response suggestion engine (templates first, then trained model)
 - [ ] Product recommendation system
 - [ ] Suggestion rating system (1-5 stars)
-- [ ] AI effectiveness tracking
+- [ ] AI effectiveness tracking (per model version and per template)
 
 ### Phase 7: CRM & Lead Management (Week 8-9)
 - [ ] Contact management interface
@@ -1451,7 +2176,152 @@ function calculateAvgResponseTime(messages: any[]): number {
 }
 ```
 
-### 4. AI Response Generation with Company Context
+### 4. AI Model Configuration & Training (Company Admin)
+
+```typescript
+// Create new AI model version
+company.ai.createModelVersion = t.procedure
+  .use(companyAdminMiddleware)
+  .input(z.object({
+    systemPrompt: z.string().min(100),
+    responseStyle: z.enum(['formal', 'casual', 'friendly', 'professional']),
+    temperature: z.number().min(0).max(1).default(0.7),
+    maxTokens: z.number().min(100).max(4000).default(1000),
+    languageConfig: z.object({
+      primary: z.string(),
+      secondary: z.array(z.string()).optional(),
+      culturalContext: z.record(z.any()).optional()
+    }),
+    trainingWeights: z.object({
+      successPatterns: z.number().min(0).max(1),
+      productCatalog: z.number().min(0).max(1),
+      faq: z.number().min(0).max(1),
+      trainingMaterials: z.number().min(0).max(1)
+    }).optional(),
+    notes: z.string().optional()
+  }))
+  .mutation(async ({ ctx, input }) => {
+    // Deactivate current active model
+    await db.ai_model_configs.updateMany({
+      where: {
+        company_id: ctx.user.company_id,
+        is_active: true
+      },
+      data: { is_active: false }
+    })
+    
+    // Get next version number
+    const existingVersions = await db.ai_model_configs.findMany({
+      where: { company_id: ctx.user.company_id },
+      orderBy: { created_at: 'desc' },
+      take: 1
+    })
+    
+    const nextVersion = existingVersions.length > 0
+      ? incrementVersion(existingVersions[0].version)
+      : 'v1.0'
+    
+    // Create new model version
+    const newModel = await db.ai_model_configs.create({
+      data: {
+        company_id: ctx.user.company_id,
+        version: nextVersion,
+        is_active: true,
+        system_prompt: input.systemPrompt,
+        response_style: input.responseStyle,
+        temperature: input.temperature,
+        max_tokens: input.maxTokens,
+        language_config: input.languageConfig,
+        success_patterns_weight: input.trainingWeights?.successPatterns || 0.3,
+        product_catalog_weight: input.trainingWeights?.productCatalog || 0.2,
+        faq_weight: input.trainingWeights?.faq || 0.2,
+        training_materials_weight: input.trainingWeights?.trainingMaterials || 0.3,
+        created_by: ctx.user.id,
+        deployed_at: new Date(),
+        notes: input.notes
+      }
+    })
+    
+    return newModel
+  })
+
+// Test AI model
+company.ai.testModel = t.procedure
+  .use(companyAdminMiddleware)
+  .input(z.object({
+    modelVersionId: z.string().uuid(),
+    customerMessage: z.string(),
+    expectedBehavior: z.string().optional(),
+    language: z.string().optional()
+  }))
+  .mutation(async ({ ctx, input }) => {
+    const modelConfig = await db.ai_model_configs.findFirst({
+      where: {
+        id: input.modelVersionId,
+        company_id: ctx.user.company_id
+      }
+    })
+    
+    if (!modelConfig) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Model version not found' })
+    }
+    
+    // Generate test response
+    const testResult = await testAIModel(
+      ctx.user.company_id,
+      input.modelVersionId,
+      {
+        customerMessage: input.customerMessage,
+        expectedBehavior: input.expectedBehavior || '',
+        language: input.language
+      }
+    )
+    
+    return testResult
+  })
+
+// Activate model version
+company.ai.activateModelVersion = t.procedure
+  .use(companyAdminMiddleware)
+  .input(z.object({
+    versionId: z.string().uuid()
+  }))
+  .mutation(async ({ ctx, input }) => {
+    // Verify model belongs to company
+    const model = await db.ai_model_configs.findFirst({
+      where: {
+        id: input.versionId,
+        company_id: ctx.user.company_id
+      }
+    })
+    
+    if (!model) {
+      throw new TRPCError({ code: 'NOT_FOUND' })
+    }
+    
+    // Deactivate current active
+    await db.ai_model_configs.updateMany({
+      where: {
+        company_id: ctx.user.company_id,
+        is_active: true
+      },
+      data: { is_active: false }
+    })
+    
+    // Activate new version
+    const activated = await db.ai_model_configs.update({
+      where: { id: input.versionId },
+      data: {
+        is_active: true,
+        deployed_at: new Date()
+      }
+    })
+    
+    return activated
+  })
+```
+
+### 5. AI Response Generation with Company Context (Using Trained Model)
 
 ```typescript
 async function generateAIResponse(conversationId: string) {
@@ -1475,26 +2345,109 @@ async function generateAIResponse(conversationId: string) {
     }
   })
   
-  // Build comprehensive context
-  const categoryPrompt = getCategoryPrompt(company.industry_category)
+  // STEP 1: CHECK SUCCESS CASE TEMPLATES FIRST (AI Priority System)
+  const lastCustomerMessage = conversation.messages
+    .filter(m => m.sender_type === 'contact')
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0]
   
-  const productsContext = company.products.map(p => 
-    `- ${p.name}: ${p.description} (${p.currency} ${p.price})`
-  ).join('\n')
+  if (lastCustomerMessage) {
+    const customerLanguage = detectCustomerLanguage(conversation.messages)
+    const matchedTemplate = await findMatchingTemplate(
+      company.id,
+      lastCustomerMessage.content,
+      customerLanguage,
+      company.industry_category
+    )
+    
+    if (matchedTemplate) {
+      // Use template response (with personalization)
+      const templateResponse = personalizeTemplateResponse(
+        matchedTemplate,
+        conversation,
+        company
+      )
+      
+      // Track template usage
+      await db.company_template_selections.update({
+        where: {
+          company_id_template_id: {
+            company_id: company.id,
+            template_id: matchedTemplate.id
+          }
+        },
+        data: {
+          usage_count: { increment: 1 },
+          last_used_at: new Date()
+        }
+      })
+      
+      await db.success_case_templates.update({
+        where: { id: matchedTemplate.id },
+        data: { usage_count: { increment: 1 } }
+      })
+      
+      // Store AI suggestion with template reference
+      const suggestion = await db.ai_suggestions.create({
+        data: {
+          conversation_id: conversationId,
+          suggested_message: templateResponse,
+          was_used: false,
+          metadata: {
+            source: 'success_case_template',
+            template_id: matchedTemplate.id,
+            template_name: matchedTemplate.name
+          }
+        }
+      })
+      
+      return { suggestionId: suggestion.id, message: templateResponse, source: 'template' }
+    }
+  }
+  
+  // STEP 2: NO TEMPLATE MATCH - FALL BACK TO TRAINED AI MODEL
+  // Get active AI model configuration (trained model)
+  const aiModel = await db.ai_model_configs.findFirst({
+    where: {
+      company_id: company.id,
+      is_active: true
+    }
+  })
+  
+  if (!aiModel) {
+    throw new Error('No active AI model found for company')
+  }
+  
+  // Build comprehensive context with localization
+  const categoryPrompt = getCategoryPrompt(company.industry_category, company.country)
+  
+  // Weight training data according to model config
+  const productsContext = company.products
+    .slice(0, Math.floor(50 * aiModel.product_catalog_weight))
+    .map(p => `- ${p.name}: ${p.description} (${company.currency} ${p.price})`)
+    .join('\n')
   
   const trainingContext = company.training_materials
+    .slice(0, Math.floor(10 * aiModel.training_materials_weight))
     .map(t => t.content)
     .join('\n\n')
+  
+  const faqs = await db.faqs.findMany({
+    where: { company_id: company.id },
+    take: Math.floor(20 * aiModel.faq_weight),
+    orderBy: { usage_count: 'desc' }
+  })
+  
+  const faqContext = faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')
   
   const conversationHistory = conversation.messages
     .reverse()
     .map(m => `${m.sender_type === 'contact' ? 'Customer' : 'Agent'}: ${m.content}`)
     .join('\n')
   
-  // Get successful patterns for this company
+  // Get successful patterns (weighted by model config)
   const successPatterns = await db.successful_patterns.findMany({
     where: { company_id: company.id },
-    take: 5,
+    take: Math.floor(10 * aiModel.success_patterns_weight),
     orderBy: { effectiveness_score: 'desc' }
   })
   
@@ -1502,62 +2455,212 @@ async function generateAIResponse(conversationId: string) {
     .map(p => p.pattern_summary)
     .join('\n\n')
   
-  // Call Claude API
+  // Detect customer language
+  const customerLanguage = detectCustomerLanguage(conversation.messages)
+  
+  // Build localized prompt
+  const localizedPrompt = buildLocalizedPrompt({
+    company,
+    aiModel,
+    categoryPrompt,
+    productsContext,
+    trainingContext,
+    faqContext,
+    patternsContext,
+    conversationHistory,
+    conversation,
+    customerLanguage
+  })
+  
+  // Call Claude API with company's trained model
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.CLAUDE_API_KEY
+    },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{
-        role: 'user',
-        content: `You are an AI sales assistant for ${company.name}, a ${company.industry_category} business.
-
-BRAND VOICE: ${company.settings.brand_voice}
-RESPONSE TONE: ${company.settings.response_tone}
-
-CATEGORY GUIDELINES:
-${categoryPrompt}
-
-AVAILABLE PRODUCTS:
-${productsContext}
-
-TRAINING MATERIALS:
-${trainingContext}
-
-SUCCESSFUL PATTERNS (learn from these):
-${patternsContext}
-
-CURRENT CONVERSATION:
-${conversationHistory}
-
-CUSTOMER BEHAVIOR SCORE: ${conversation.contact.behavior_score}/100 (${conversation.contact.score_color})
-
-Generate a helpful, natural response that:
-1. Addresses the customer's last message directly
-2. Suggests relevant products if appropriate
-3. Uses the brand voice and tone specified
-4. Applies successful patterns learned from past conversations
-5. Moves the conversation toward a sale if customer seems ready (green score)
-
-Response:`
-      }]
+      max_tokens: aiModel.max_tokens,
+      temperature: aiModel.temperature,
+      messages: [
+        {
+          role: 'system',
+          content: aiModel.system_prompt // Use company's custom trained prompt
+        },
+        {
+          role: 'user',
+          content: localizedPrompt
+        }
+      ]
     })
   })
   
   const data = await response.json()
   const aiMessage = data.content[0].text
   
-  // Store AI suggestion
+  // Store AI suggestion with model version tracking
   const suggestion = await db.ai_suggestions.create({
     data: {
       conversation_id: conversationId,
       suggested_message: aiMessage,
-      was_used: false
+      was_used: false,
+      metadata: {
+        model_version: aiModel.version,
+        model_config_id: aiModel.id
+      }
     }
   })
   
   return { suggestionId: suggestion.id, message: aiMessage }
+}
+
+// Template Matching Function (AI Priority System)
+async function findMatchingTemplate(
+  companyId: string,
+  customerMessage: string,
+  customerLanguage: string,
+  industryCategory?: string
+) {
+  // Get enabled templates for this company (ordered by priority)
+  const enabledTemplates = await db.company_template_selections.findMany({
+    where: {
+      company_id: companyId,
+      is_enabled: true
+    },
+    include: {
+      template: {
+        where: {
+          is_active: true,
+          language: customerLanguage, // Match customer's language
+          OR: [
+            { industry_category: industryCategory },
+            { industry_category: null } // Global templates
+          ]
+        }
+      }
+    },
+    orderBy: [
+      { is_preferred: 'desc' }, // Preferred templates first
+      { priority: 'desc' } // Then by priority
+    ]
+  })
+  
+  const customerMessageLower = customerMessage.toLowerCase()
+  
+  // Check each template for matches
+  for (const selection of enabledTemplates) {
+    const template = selection.template
+    if (!template) continue
+    
+    // Check if customer message matches template patterns
+    const patterns = template.customer_message_patterns as string[] || []
+    const examples = template.customer_message_examples as string[] || []
+    
+    // Check pattern matches
+    const patternMatch = patterns.some(pattern => 
+      customerMessageLower.includes(pattern.toLowerCase())
+    )
+    
+    // Check example matches (fuzzy matching)
+    const exampleMatch = examples.some(example => {
+      const exampleLower = example.toLowerCase()
+      // Simple keyword matching (can be enhanced with NLP)
+      const exampleKeywords = exampleLower.split(/\s+/)
+      return exampleKeywords.some(keyword => 
+        keyword.length > 3 && customerMessageLower.includes(keyword)
+      )
+    })
+    
+    if (patternMatch || exampleMatch) {
+      return template
+    }
+  }
+  
+  return null
+}
+
+// Personalize template response
+function personalizeTemplateResponse(
+  template: any,
+  conversation: any,
+  company: any
+): string {
+  let response = template.agent_response
+  
+  // Get localized version if available
+  const customerLanguage = detectCustomerLanguage(conversation.messages)
+  if (template.localized_versions && template.localized_versions[customerLanguage]) {
+    response = template.localized_versions[customerLanguage].agent_response || response
+  }
+  
+  // Apply company customizations if any
+  const companySelection = conversation.company?.template_selections?.find(
+    (s: any) => s.template_id === template.id
+  )
+  if (companySelection?.custom_modifications) {
+    response = applyCustomizations(response, companySelection.custom_modifications)
+  }
+  
+  // Personalize with customer name if available
+  if (conversation.contact?.name) {
+    response = response.replace(/\{customer_name\}/g, conversation.contact.name)
+  }
+  
+  // Personalize with product names if mentioned
+  if (conversation.messages.some((m: any) => m.content.match(/product|item|product_id/))) {
+    // Extract product mentions and personalize
+    // This can be enhanced with product catalog lookup
+  }
+  
+  return response
+}
+
+function applyCustomizations(response: string, customizations: any): string {
+  // Apply company-specific customizations to template
+  // For example: replace certain phrases, add company name, etc.
+  let customized = response
+  
+  if (customizations.replacements) {
+    customizations.replacements.forEach((replacement: any) => {
+      customized = customized.replace(
+        new RegExp(replacement.find, 'gi'),
+        replacement.replace
+      )
+    })
+  }
+  
+  if (customizations.prefix) {
+    customized = customizations.prefix + ' ' + customized
+  }
+  
+  if (customizations.suffix) {
+    customized = customized + ' ' + customizations.suffix
+  }
+  
+  return customized
+}
+
+function detectCustomerLanguage(messages: any[]): string {
+  // Enhanced language detection for en, zh, bm
+  const recentMessages = messages.slice(-5).map(m => m.content.toLowerCase()).join(' ')
+  
+  // Bahasa Malaysia detection
+  if (recentMessages.match(/terima kasih|boleh|tak|betul|selamat|saya|awak|macam mana|berapa|murah|mahal|diskaun|boleh|tak|ya|tidak|ok|baik/)) {
+    return 'bm' // Bahasa Malaysia
+  }
+  
+  // Chinese (Mandarin) detection
+  if (recentMessages.match(/谢谢|你好|可以|多少钱|太贵|便宜|折扣|好的|是的|不是|多少钱|怎么|什么|哪里|什么时候/)) {
+    return 'zh' // Mandarin
+  }
+  
+  // Tamil detection (optional)
+  if (recentMessages.match(/நன்றி|ஆம்|இல்லை|எவ்வளவு|விலை/)) {
+    return 'ta' // Tamil
+  }
+  
+  return 'en' // Default to English
 }
 
 // Agent uses AI suggestion
@@ -1866,12 +2969,32 @@ function verifyWebhookSignature(req: Request, secret: string): boolean {
 2. **Assignment access**: Agents can ONLY see assigned conversations
 3. **Admin monitoring**: Company admins can see ALL conversations
 4. **Webhook routing**: Messages reach correct company
-5. **Behavior scoring**: Score updates correctly after messages
-6. **AI context**: Each company gets their own training/products
-7. **Assignment workflow**: Assign/reassign works properly
-8. **Notification system**: Agents notified of assignments
-9. **Learning loop**: Successful patterns stored and used
-10. **Export functionality**: Data exports respect access control
+5. **Behavior scoring**: Score updates correctly after messages (with language-aware keywords for en, zh, bm)
+6. **Success case templates (CRITICAL)**: 
+   - Templates checked FIRST before AI model
+   - Template matching works correctly (pattern + keyword)
+   - Language-specific templates (en, zh, bm) match correctly
+   - Priority system works (preferred > priority > default)
+   - Template personalization applies correctly
+   - Template usage tracking accurate
+   - Company can enable/disable templates
+   - Company can customize templates
+7. **AI context**: Each company gets their own trained model, training/products
+8. **AI model training**: Admin can create, test, and activate model versions
+9. **Localization (en, zh, bm)**: 
+   - Language detection works for English, Chinese, Bahasa Malaysia
+   - AI responds in correct language
+   - Cultural context applied correctly
+   - Templates available in all three languages
+10. **Model versioning**: Only active model is used, version tracking works
+11. **Template fallback**: If no template match, falls back to trained AI model correctly
+12. **Assignment workflow**: Assign/reassign works properly
+13. **Notification system**: Agents notified of assignments
+14. **Learning loop**: Successful patterns stored and used (weighted by model config)
+15. **Export functionality**: Data exports respect access control
+16. **AI model testing**: Test scenarios work, results stored correctly
+17. **Template testing**: Test interface works, template matching validated
+18. **Performance monitoring**: Model metrics and template metrics tracked accurately
 
 ---
 
@@ -1887,6 +3010,28 @@ function verifyWebhookSignature(req: Request, secret: string): boolean {
 
 5. **Behavior score changes to green** → Notify assigned agent → Notify company admin → Prioritize in lead list
 
-6. **AI generates response** → Load company context (category, products, training, successful patterns) → Call Claude API → Store suggestion → Agent can use/modify → Track effectiveness
+6. **AI generates response (TEMPLATE PRIORITY SYSTEM)** → 
+   - **STEP 1: Check success case templates first**
+     - Detect customer language (en, zh, bm)
+     - Match customer message against enabled templates (pattern + keyword matching)
+     - Select best matching template (preferred > priority > default)
+     - Personalize template response (customer name, product mentions, company customizations)
+     - If template match found: Use template response → Track template usage → Store suggestion with template reference
+   - **STEP 2: No template match - Fall back to trained AI model**
+     - Load company's active trained AI model
+     - Build localized context (country, language, cultural context)
+     - Apply weighted training data (products, FAQs, patterns)
+     - Use company's custom system prompt
+     - Call Claude API with model config
+     - Store suggestion with model version
+   - Agent can use/modify → Track effectiveness (per template or per model version)
+
+7. **Super Admin creates global templates** → Create success case templates → Set industry category → Add language versions (en, zh, bm) → Define customer message patterns → Write agent response template → Mark as recommended → All companies can see and enable
+
+8. **Company Admin manages templates** → View global templates library → Enable/disable templates → Set priority and preferences → Customize templates for company → Create company-specific templates → Test templates → Monitor template usage and effectiveness
+
+9. **Company Admin trains AI model** → Configure system prompt → Set training data weights → Configure language and cultural context → Test model with scenarios → Activate version → All future AI responses use new model (if no template match) → Monitor performance metrics
+
+10. **Localization in action (en, zh, bm)** → Customer message arrives → Detect customer language (English/Bahasa Malaysia/Chinese) → AI checks templates in detected language first → If template match: Use localized template response → If no template: AI responds in appropriate language → Use cultural context (greetings, customs) → Format currency and dates according to company settings
 
 This prompt should give you everything needed to build the complete platform! 🚀
