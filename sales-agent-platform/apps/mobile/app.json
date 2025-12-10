@@ -1,0 +1,85 @@
+{
+  "expo": {
+    "expo-router": {
+      "appRoot": "app"
+    },
+    "name": "Conforer Move Dev",
+    "slug": "mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.macoin.irisagent.dev"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.macoin.irisagent.dev",
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "./plugins/with-google-services.js",
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "googleServicesFile": "./config/dev/GoogleService-Info.plist"
+          },
+          "android": {
+            "googleServicesFile": "./config/dev/google-services.json"
+          }
+        }
+      ],
+      "./plugins/with-android-sdk.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "edgeToEdgeEnabled": true
+          },
+          "ios": {
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to upload profile picture.",
+          "cameraPermission": "The app needs access to camera to take profile pictures."
+        }
+      ],
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "The app needs access to your Camera to scan QR codes and barcodes.",
+          "enableMicrophonePermission": true,
+          "microphonePermissionText": "The app needs access to your Microphone to record videos.",
+          "enableCodeScanner": true
+        }
+      ],
+      "expo-secure-store",
+      "expo-localization",
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "569952659690",
+    "project_id": "iris-dev-954c2",
+    "storage_bucket": "iris-dev-954c2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:569952659690:android:8a8f6c998c956ec0f80f93",
+        "android_client_info": {
+          "package_name": "com.irisagent.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "569952659690-btbjuottcdsdjaukacevfttm14j5t3uh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.irisagent.mobile",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "569952659690-pqh2i9k9h5jhv114jqoagbdr1pnefahc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjNBdFIIQrWCNqu9218RGK8oBRGN4oFBg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "569952659690-pqh2i9k9h5jhv114jqoagbdr1pnefahc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "569952659690-0s0un7rab7upaa4bfah25qjrsbgh2eq2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.macoin.irisagent.dev"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:569952659690:android:a9463ccd9f762253f80f93",
+        "android_client_info": {
+          "package_name": "com.macoin.irisagent.dev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "569952659690-4tc7mdusp12lq3pd7n00vor3ubga1i5i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.macoin.irisagent.dev",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "569952659690-pqh2i9k9h5jhv114jqoagbdr1pnefahc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjNBdFIIQrWCNqu9218RGK8oBRGN4oFBg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "569952659690-pqh2i9k9h5jhv114jqoagbdr1pnefahc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "569952659690-0s0un7rab7upaa4bfah25qjrsbgh2eq2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.macoin.irisagent.dev"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,32 @@
+{
+  "name": "project-template",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "check-types": "turbo run check-types",
+    "upgrade": "bun update",
+    "upgrade:latest": "node upgrade-deps.js --latest",
+    "dev:backend": "turbo run dev --filter=backend",
+    "dev:admin": "turbo run dev --filter=template-trpc-admin",
+    "dev:mobile": "turbo run dev --filter=mobile",
+    "build:backend": "turbo run build --filter=backend",
+    "build:admin": "turbo run build --filter=template-trpc-admin",
+    "build:mobile": "turbo run build --filter=mobile"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.6.1",
+    "typescript": "5.8.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "bun@1.2.12",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

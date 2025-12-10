@@ -1,0 +1,145 @@
+@import "@nuxt/ui";
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* 🌅 Light mode - Background & Surface */
+    --background: 0 0% 100%;
+    --surface: 249 9% 98%;
+    --foreground: 222.2 84% 4.9%;
+    --text-tertiary: 215.4 16.3% 46.9%;
+
+    /* 🌅 Light mode - Cards & Popovers */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    /* 🎨 Primary brand color (Sky Blue) */
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --primary-50: 204 100% 97%;
+    --primary-100: 204 96% 94%;
+    --primary-200: 201 96% 89%;
+    --primary-300: 199 95% 80%;
+    --primary-400: 196 94% 68%;
+    --primary-600: 213 94% 43%;
+    --primary-700: 217 91% 36%;
+    --primary-800: 222 84% 30%;
+    --primary-900: 224 76% 25%;
+
+    /* 🎨 Secondary brand color */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    /* ✅ Semantic colors - Success */
+    --success: 142 76% 36%;
+    --success-light: 142 76% 82%;
+    --success-dark: 142 84% 20%;
+
+    /* ✅ Semantic colors - Error */
+    --error: 0 84.2% 60.2%;
+    --error-light: 0 84% 89%;
+    --error-dark: 0 72% 38%;
+
+    /* ✅ Semantic colors - Warning */
+    --warning: 38 92% 50%;
+    --warning-light: 48 96% 89%;
+    --warning-dark: 32 95% 29%;
+
+    /* ✅ Semantic colors - Info */
+    --info: 217 91% 60%;
+    --info-light: 214 95% 93%;
+    --info-dark: 224 76% 48%;
+
+    /* 🌅 Light mode - Muted & Accent */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    /* 🌅 Light mode - Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* 🌅 Light mode - Borders & Inputs */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* 🌙 Dark mode - Background & Surface */
+    --background: 222.2 84% 4.9%;
+    --surface: 217 33% 12%;
+    --foreground: 210 40% 98%;
+    --text-tertiary: 215 20.2% 65.1%;
+
+    /* 🌙 Dark mode - Cards & Popovers */
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    /* 🎨 Primary brand color (lighter for dark mode) */
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary-50: 224 76% 25%;
+    --primary-100: 222 84% 30%;
+    --primary-200: 217 91% 36%;
+    --primary-300: 213 94% 43%;
+    --primary-400: 199 95% 68%;
+    --primary-600: 196 94% 80%;
+    --primary-700: 201 96% 89%;
+    --primary-800: 204 96% 94%;
+    --primary-900: 204 100% 97%;
+
+    /* 🎨 Secondary brand color */
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    /* ✅ Semantic colors - Success (dark mode) */
+    --success: 142 76% 50%;
+    --success-light: 142 76% 30%;
+    --success-dark: 142 84% 15%;
+
+    /* ✅ Semantic colors - Error (dark mode) */
+    --error: 0 84% 58%;
+    --error-light: 0 72% 25%;
+    --error-dark: 0 84% 45%;
+
+    /* ✅ Semantic colors - Warning (dark mode) */
+    --warning: 38 92% 55%;
+    --warning-light: 32 95% 20%;
+    --warning-dark: 38 92% 40%;
+
+    /* ✅ Semantic colors - Info (dark mode) */
+    --info: 217 91% 65%;
+    --info-light: 224 76% 35%;
+    --info-dark: 217 91% 55%;
+
+    /* 🌙 Dark mode - Muted & Accent */
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    /* 🌙 Dark mode - Destructive */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* 🌙 Dark mode - Borders & Inputs */
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+
+    /* 🌙 Dark mode specific colors */
+    --dark-background: 222.2 84% 4.9%;
+    --dark-surface: 217 33% 12%;
+    --dark-card: 217 33% 15%;
+    --dark-foreground: 210 40% 98%;
+    --dark-muted-foreground: 215 20.2% 65.1%;
+    --dark-border: 217.2 32.6% 17.5%;
+  }
+}

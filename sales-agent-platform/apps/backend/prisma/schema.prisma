@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String?        @unique
+  phoneNumber  String?        @unique
+  name         String?
+  password     String?
+  provider     String         @default("email")
+  firebaseUid  String?        @unique
+  lastLoginAt  DateTime?      // Track last login for inactivity check
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  refreshTokens UserRefreshToken[]
+  products     Product[]
+}
+
+model UserRefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique // This is the refresh token
+  accessToken String?  // This is the active access token for this session
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  revoked     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Float
+  stock       Int      @default(0)
+  image       String?
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
