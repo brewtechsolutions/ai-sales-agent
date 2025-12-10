@@ -101,6 +101,51 @@ Options:
 - Auto-generate package images with branding
 - Pricing logic (bundle discounts)
 
+#### E. Integration Credentials & Webhooks (CRITICAL)
+**Each company manages their own API credentials and webhook configurations.**
+
+**WhatsApp Integration (OnSend API):**
+- **OnSend API Key**: Company's own OnSend API key
+- **OnSend API Secret**: Company's own API secret
+- **OnSend Phone Number ID**: Company's WhatsApp Business phone number ID
+- **Webhook URL**: Auto-generated as `/webhook/{company_id}/whatsapp`
+- **Webhook Secret**: Auto-generated unique secret per company (for webhook verification)
+- **Test Connection**: Verify credentials work before saving
+- **Connection Status**: Show if credentials are valid/active
+
+**Telegram Integration:**
+- **Telegram Bot Token**: Company's own Telegram bot token (from @BotFather)
+- **Telegram Bot Username**: Bot username for reference
+- **Webhook URL**: Auto-generated as `/webhook/{company_id}/telegram`
+- **Webhook Secret**: Auto-generated unique secret per company
+- **Test Connection**: Verify bot token works
+- **Connection Status**: Show if bot is active and receiving messages
+
+**Webhook Configuration:**
+- **Webhook Endpoints**: 
+  - WhatsApp: `https://yourplatform.com/webhook/{company_id}/whatsapp`
+  - Telegram: `https://yourplatform.com/webhook/{company_id}/telegram`
+- **Webhook Verification**: Each company has unique secret for signature verification
+- **Webhook Status**: Show if webhooks are properly configured at provider side
+- **Webhook Test**: Send test webhook to verify endpoint works
+
+**Security Features:**
+- **Encrypted Storage**: All credentials encrypted at rest (AES-256)
+- **Credential Masking**: Show only last 4 characters in UI (e.g., `****1234`)
+- **Audit Log**: Track when credentials are added/updated
+- **Credential Rotation**: Support for updating credentials without downtime
+- **Access Control**: Only Company Admin can view/edit credentials
+
+**Company Admin Capabilities:**
+- Add/update WhatsApp credentials
+- Add/update Telegram credentials
+- Test connections before saving
+- View webhook URLs and secrets
+- Configure webhook settings at provider (OnSend/Telegram)
+- View connection status and last successful connection
+- Revoke/regenerate webhook secrets
+- View webhook delivery logs and errors
+
 ### 3. AI TRAINING SYSTEM
 
 #### A. Company-Specific Training
@@ -489,6 +534,48 @@ company_settings (
   created_at TIMESTAMP
 )
 
+-- Integration Credentials (Per Company - Encrypted)
+company_integrations (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id) UNIQUE, -- one integration config per company
+  -- WhatsApp/OnSend credentials (encrypted)
+  onsend_api_key_encrypted TEXT, -- AES-256 encrypted
+  onsend_api_secret_encrypted TEXT, -- AES-256 encrypted
+  onsend_phone_number_id VARCHAR(100),
+  onsend_webhook_secret VARCHAR(255), -- for webhook signature verification
+  onsend_connection_status VARCHAR(20), -- connected, disconnected, error
+  onsend_last_connected_at TIMESTAMP,
+  onsend_last_error TEXT,
+  -- Telegram credentials (encrypted)
+  telegram_bot_token_encrypted TEXT, -- AES-256 encrypted
+  telegram_bot_username VARCHAR(100),
+  telegram_webhook_secret VARCHAR(255), -- for webhook signature verification
+  telegram_connection_status VARCHAR(20), -- connected, disconnected, error
+  telegram_last_connected_at TIMESTAMP,
+  telegram_last_error TEXT,
+  -- Webhook URLs (auto-generated, read-only)
+  whatsapp_webhook_url TEXT, -- /webhook/{company_id}/whatsapp
+  telegram_webhook_url TEXT, -- /webhook/{company_id}/telegram
+  -- Metadata
+  created_by UUID REFERENCES users(id),
+  updated_by UUID REFERENCES users(id),
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+)
+
+-- Integration Credential Audit Log
+integration_credential_logs (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  integration_type VARCHAR(20), -- whatsapp, telegram
+  action VARCHAR(50), -- added, updated, tested, revoked
+  changed_by UUID REFERENCES users(id),
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  metadata JSONB, -- additional context
+  created_at TIMESTAMP
+)
+
 -- AI Model Configuration & Training (Per Company)
 ai_model_configs (
   id UUID PRIMARY KEY,
@@ -776,6 +863,8 @@ CREATE INDEX idx_success_case_templates_industry ON success_case_templates(indus
 CREATE INDEX idx_success_case_templates_global_active ON success_case_templates(is_global, is_active);
 CREATE INDEX idx_company_template_selections_enabled ON company_template_selections(company_id, is_enabled);
 CREATE INDEX idx_company_template_selections_preferred ON company_template_selections(company_id, is_preferred, priority);
+CREATE INDEX idx_company_integrations_company ON company_integrations(company_id);
+CREATE INDEX idx_integration_credential_logs_company ON integration_credential_logs(company_id, created_at);
 ```
 
 ---
@@ -895,9 +984,20 @@ agent.products.sendCard(conversationId, productId)
 agent.dashboard.myStats()
 agent.dashboard.myTasks()
 
+// Integration Credentials Management (Company Admin)
+company.integrations.get() // get current integration credentials (masked)
+company.integrations.updateWhatsApp(credentials) // update OnSend/WhatsApp credentials
+company.integrations.updateTelegram(credentials) // update Telegram bot credentials
+company.integrations.testWhatsApp() // test OnSend connection
+company.integrations.testTelegram() // test Telegram bot connection
+company.integrations.getWebhookUrls() // get webhook URLs for configuration
+company.integrations.regenerateWebhookSecret(platform) // regenerate webhook secret (whatsapp/telegram)
+company.integrations.getConnectionStatus() // get connection status for both platforms
+company.integrations.getAuditLog() // get credential change history
+
 // Shared/Public Routes
-webhook.whatsapp(companyId) // POST /webhook/:companyId/whatsapp
-webhook.telegram(companyId) // POST /webhook/:companyId/telegram
+webhook.whatsapp(companyId) // POST /webhook/:companyId/whatsapp (uses company's OnSend credentials)
+webhook.telegram(companyId) // POST /webhook/:companyId/telegram (uses company's Telegram credentials)
 
 ai.analyzeConversation(conversationId)
 ai.scoreContact(contactId)
@@ -1588,8 +1688,44 @@ function getCategoryPrompt(category, country = 'default') {
   - Company profile
   - Assignment rules
   - Business hours
-  - Integrations (WhatsApp, Telegram)
   - Billing
+
+/company/integrations ← INTEGRATION CREDENTIALS MANAGEMENT
+  - WhatsApp/OnSend Integration
+    * API Key input (masked display: ****1234)
+    * API Secret input (masked)
+    * Phone Number ID input
+    * Test Connection button
+    * Connection Status indicator (connected/disconnected/error)
+    * Last Connected timestamp
+    * Error messages display
+    * Webhook URL display (read-only): /webhook/{company_id}/whatsapp
+    * Webhook Secret display (with regenerate button)
+    * Instructions: "Configure this webhook URL in your OnSend dashboard"
+  
+  - Telegram Integration
+    * Bot Token input (masked display: ****1234)
+    * Bot Username display (auto-filled after test)
+    * Test Connection button
+    * Connection Status indicator
+    * Last Connected timestamp
+    * Error messages display
+    * Webhook URL display (read-only): /webhook/{company_id}/telegram
+    * Webhook Secret display (with regenerate button)
+    * Instructions: "Configure this webhook URL in your Telegram Bot settings"
+  
+  - Credential Management
+    * Save credentials (encrypted)
+    * Update credentials
+    * Delete/Revoke credentials
+    * Credential audit log (who changed what, when)
+    * Security notice: "Credentials are encrypted and only accessible by Company Admins"
+  
+  - Connection Testing
+    * Test WhatsApp connection
+    * Test Telegram connection
+    * View connection logs
+    * Troubleshooting guide
 ```
 
 ### Agent Portal (`/agent`)
@@ -1694,14 +1830,33 @@ function getCategoryPrompt(category, country = 'default') {
 - [ ] Image upload to S3/CDN
 - [ ] Package builder UI
 - [ ] Template system
+- [ ] **Integration Credentials Management**
+  - [ ] Database schema for company_integrations
+  - [ ] Credential encryption/decryption service (AES-256)
+  - [ ] Integration settings UI
+  - [ ] Credential input forms (masked display)
+  - [ ] Connection testing functionality
+  - [ ] Webhook URL generation
+  - [ ] Webhook secret generation
+  - [ ] Credential audit logging
 
-### Phase 3: Webhooks & Messaging (Week 3-4)
-- [ ] WhatsApp webhook receiver (OnSend API)
-- [ ] Telegram webhook receiver
+### Phase 3: Webhooks & Messaging with Company Credentials (Week 3-4)
+- [ ] **WhatsApp webhook receiver** (uses company's OnSend credentials)
+  - [ ] Load company's integration credentials
+  - [ ] Verify webhook signature using company's webhook secret
+  - [ ] Process incoming messages
+- [ ] **Telegram webhook receiver** (uses company's bot token)
+  - [ ] Load company's integration credentials
+  - [ ] Verify webhook signature using company's webhook secret
+  - [ ] Process incoming messages
 - [ ] Message storage in database
 - [ ] Contact creation/update logic
 - [ ] Webhook routing by company_id
-- [ ] Message sending to WhatsApp/Telegram
+- [ ] **Message sending using company credentials**
+  - [ ] Send WhatsApp messages via OnSend (using company's API key)
+  - [ ] Send Telegram messages (using company's bot token)
+  - [ ] Connection status tracking
+  - [ ] Error handling and retry logic
 
 ### Phase 4: Conversation Assignment System (Week 4-5) ← CRITICAL
 - [ ] Conversation assignment table
@@ -1905,18 +2060,31 @@ company.conversations.assign = t.procedure
 ### 2. Webhook Processing with Auto-Assignment
 
 ```typescript
-// Webhook handler
+// Webhook handler - Uses company's own credentials
 app.post('/webhook/:companyId/whatsapp', async (req, res) => {
   const { companyId } = req.params
   const { from, body, timestamp } = req.body
   
-  // Verify webhook signature
+  // Get company and integration credentials
   const company = await db.companies.findUnique({
     where: { id: companyId },
-    include: { settings: true }
+    include: { 
+      settings: true,
+      integrations: true // Get company's integration credentials
+    }
   })
   
-  if (!verifyWebhookSignature(req, company.webhook_secret)) {
+  if (!company) {
+    return res.status(404).json({ error: 'Company not found' })
+  }
+  
+  if (!company.integrations) {
+    return res.status(400).json({ error: 'WhatsApp integration not configured' })
+  }
+  
+  // Verify webhook signature using company's webhook secret
+  const webhookSecret = company.integrations.onsend_webhook_secret
+  if (!verifyWebhookSignature(req, webhookSecret)) {
     return res.status(401).json({ error: 'Invalid signature' })
   }
   
@@ -2048,6 +2216,217 @@ async function determineAssignment(companyId, settings) {
   
   // Add more strategies as needed
   return null
+}
+```
+
+### 2.5. Sending Messages Using Company Credentials
+
+```typescript
+// Send message via WhatsApp using company's OnSend credentials
+async function sendWhatsAppMessage(
+  companyId: string,
+  to: string,
+  message: string
+) {
+  // Get company's integration credentials
+  const integration = await db.company_integrations.findUnique({
+    where: { company_id: companyId }
+  })
+  
+  if (!integration || !integration.onsend_api_key_encrypted) {
+    throw new Error('WhatsApp integration not configured for this company')
+  }
+  
+  // Decrypt credentials (use your encryption service)
+  const apiKey = decrypt(integration.onsend_api_key_encrypted)
+  const apiSecret = decrypt(integration.onsend_api_secret_encrypted)
+  const phoneNumberId = integration.onsend_phone_number_id
+  
+  // Send message via OnSend API using company's credentials
+  const response = await fetch('https://api.onsend.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Secret': apiSecret,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      phone_number_id: phoneNumberId,
+      to: to,
+      message: message
+    })
+  })
+  
+  if (!response.ok) {
+    // Update connection status on error
+    await db.company_integrations.update({
+      where: { company_id: companyId },
+      data: {
+        onsend_connection_status: 'error',
+        onsend_last_error: await response.text()
+      }
+    })
+    throw new Error('Failed to send WhatsApp message')
+  }
+  
+  // Update connection status on success
+  await db.company_integrations.update({
+    where: { company_id: companyId },
+    data: {
+      onsend_connection_status: 'connected',
+      onsend_last_connected_at: new Date(),
+      onsend_last_error: null
+    }
+  })
+  
+  return await response.json()
+}
+
+// Send message via Telegram using company's bot token
+async function sendTelegramMessage(
+  companyId: string,
+  chatId: string,
+  message: string
+) {
+  // Get company's integration credentials
+  const integration = await db.company_integrations.findUnique({
+    where: { company_id: companyId }
+  })
+  
+  if (!integration || !integration.telegram_bot_token_encrypted) {
+    throw new Error('Telegram integration not configured for this company')
+  }
+  
+  // Decrypt bot token
+  const botToken = decrypt(integration.telegram_bot_token_encrypted)
+  
+  // Send message via Telegram Bot API using company's bot token
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: message
+    })
+  })
+  
+  if (!response.ok) {
+    // Update connection status on error
+    await db.company_integrations.update({
+      where: { company_id: companyId },
+      data: {
+        telegram_connection_status: 'error',
+        telegram_last_error: await response.text()
+      }
+    })
+    throw new Error('Failed to send Telegram message')
+  }
+  
+  // Update connection status on success
+  await db.company_integrations.update({
+    where: { company_id: companyId },
+    data: {
+      telegram_connection_status: 'connected',
+      telegram_last_connected_at: new Date(),
+      telegram_last_error: null
+    }
+  })
+  
+  return await response.json()
+}
+
+// Unified function to send messages (determines platform from contact)
+async function sendMessageToPlatform(
+  conversation: any,
+  message: string
+) {
+  const contact = await db.contacts.findUnique({
+    where: { id: conversation.contact_id }
+  })
+  
+  if (contact.platform === 'whatsapp') {
+    return await sendWhatsAppMessage(
+      conversation.company_id,
+      contact.phone,
+      message
+    )
+  } else if (contact.platform === 'telegram') {
+    return await sendTelegramMessage(
+      conversation.company_id,
+      contact.platform_id, // Telegram chat_id
+      message
+    )
+  } else {
+    throw new Error(`Unsupported platform: ${contact.platform}`)
+  }
+}
+
+// Test connection function
+async function testWhatsAppConnection(companyId: string) {
+  const integration = await db.company_integrations.findUnique({
+    where: { company_id: companyId }
+  })
+  
+  if (!integration) {
+    throw new Error('Integration not configured')
+  }
+  
+  const apiKey = decrypt(integration.onsend_api_key_encrypted)
+  const apiSecret = decrypt(integration.onsend_api_secret_encrypted)
+  
+  // Test API call
+  const response = await fetch('https://api.onsend.com/v1/account/status', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Secret': apiSecret
+    }
+  })
+  
+  const isConnected = response.ok
+  
+  await db.company_integrations.update({
+    where: { company_id: companyId },
+    data: {
+      onsend_connection_status: isConnected ? 'connected' : 'error',
+      onsend_last_connected_at: isConnected ? new Date() : null,
+      onsend_last_error: isConnected ? null : await response.text()
+    }
+  })
+  
+  return { connected: isConnected }
+}
+
+async function testTelegramConnection(companyId: string) {
+  const integration = await db.company_integrations.findUnique({
+    where: { company_id: companyId }
+  })
+  
+  if (!integration) {
+    throw new Error('Integration not configured')
+  }
+  
+  const botToken = decrypt(integration.telegram_bot_token_encrypted)
+  
+  // Test API call (getMe endpoint)
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`)
+  
+  const data = await response.json()
+  const isConnected = data.ok === true
+  
+  await db.company_integrations.update({
+    where: { company_id: companyId },
+    data: {
+      telegram_connection_status: isConnected ? 'connected' : 'error',
+      telegram_last_connected_at: isConnected ? new Date() : null,
+      telegram_last_error: isConnected ? null : JSON.stringify(data),
+      telegram_bot_username: isConnected ? data.result?.username : null
+    }
+  })
+  
+  return { connected: isConnected, botInfo: data.result }
 }
 ```
 
@@ -2945,14 +3324,87 @@ function verifyWebhookSignature(req: Request, secret: string): boolean {
 }
 ```
 
+### 4. Integration Credentials Encryption & Security
+```typescript
+import crypto from 'crypto'
+
+// Encryption key (store in environment variable, use key management service in production)
+const ENCRYPTION_KEY = process.env.CREDENTIAL_ENCRYPTION_KEY || crypto.randomBytes(32)
+const ALGORITHM = 'aes-256-gcm'
+
+// Encrypt credentials before storing
+function encryptCredential(plaintext: string): string {
+  const iv = crypto.randomBytes(16)
+  const cipher = crypto.createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv)
+  
+  let encrypted = cipher.update(plaintext, 'utf8', 'hex')
+  encrypted += cipher.final('hex')
+  
+  const authTag = cipher.getAuthTag()
+  
+  // Return: iv:authTag:encrypted
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`
+}
+
+// Decrypt credentials when needed
+function decryptCredential(encrypted: string): string {
+  const [ivHex, authTagHex, encryptedText] = encrypted.split(':')
+  
+  const iv = Buffer.from(ivHex, 'hex')
+  const authTag = Buffer.from(authTagHex, 'hex')
+  
+  const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv)
+  decipher.setAuthTag(authTag)
+  
+  let decrypted = decipher.update(encryptedText, 'hex', 'utf8')
+  decrypted += decipher.final('utf8')
+  
+  return decrypted
+}
+
+// Access control for credentials
+const integrationCredentialMiddleware = t.middleware(async ({ ctx, next }) => {
+  // Only company admin can access credentials
+  if (ctx.user.role !== 'company_admin') {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Only company admins can manage credentials' })
+  }
+  
+  return next()
+})
+
+// Audit logging for credential changes
+async function logCredentialChange(
+  companyId: string,
+  integrationType: 'whatsapp' | 'telegram',
+  action: string,
+  userId: string,
+  ipAddress?: string
+) {
+  await db.integration_credential_logs.create({
+    data: {
+      company_id: companyId,
+      integration_type: integrationType,
+      action: action,
+      changed_by: userId,
+      ip_address: ipAddress,
+      metadata: {
+        timestamp: new Date().toISOString()
+      }
+    }
+  })
+}
+```
+
 ---
 
 ## DEPLOYMENT CHECKLIST
 
 - [ ] Environment variables configured (DATABASE_URL, CLAUDE_API_KEY, S3_CREDENTIALS)
+- [ ] **Credential encryption key configured** (CREDENTIAL_ENCRYPTION_KEY - 32 bytes, store securely)
 - [ ] Database migrations run
 - [ ] Seed data for industry categories
-- [ ] Webhook URLs configured in WhatsApp/Telegram
+- [ ] **Integration credentials encryption service** (AES-256-GCM)
+- [ ] Webhook URLs configured in WhatsApp/Telegram (companies configure their own)
 - [ ] CDN/S3 bucket for image uploads
 - [ ] Background job queue (for AI learning, score updates)
 - [ ] Monitoring and error tracking (Sentry, etc)
@@ -2960,6 +3412,7 @@ function verifyWebhookSignature(req: Request, secret: string): boolean {
 - [ ] CORS properly set
 - [ ] SSL certificates
 - [ ] Backup strategy in place
+- [ ] **Credential audit logging** enabled
 
 ---
 
@@ -3000,11 +3453,13 @@ function verifyWebhookSignature(req: Request, secret: string): boolean {
 
 ## KEY BUSINESS LOGIC SUMMARY
 
-1. **New message arrives** → Webhook routes to company → Find/create contact → Find/create conversation → Check assignment rules → Assign if auto-enabled OR add to unassigned queue → Store message → Update behavior score (every 3 msgs) → AI responds if no agent assigned
+1. **New message arrives** → Webhook receives at `/webhook/{company_id}/whatsapp` or `/telegram` → Load company's integration credentials (decrypt) → Verify webhook signature using company's webhook secret → Find/create contact → Find/create conversation → Check assignment rules → Assign if auto-enabled OR add to unassigned queue → Store message → Update behavior score (every 3 msgs) → AI responds if no agent assigned
+
+1a. **Company Admin configures credentials** → Add OnSend API key/secret (encrypted) → Add Telegram bot token (encrypted) → Test connections → Webhook URLs auto-generated → Configure webhooks at provider (OnSend/Telegram) → Credentials stored encrypted → Audit log created
 
 2. **Company Admin assigns conversation** → Update assigned_to field → Log assignment history → Notify agent → Agent sees in their inbox
 
-3. **Agent handles conversation** → Can only see assigned → Uses AI suggestions → Sends messages → Can request transfer → Marks as completed with sale details
+3. **Agent handles conversation** → Can only see assigned → Uses AI suggestions → Sends messages (using company's own credentials - OnSend API or Telegram bot token) → Can request transfer → Marks as completed with sale details
 
 4. **Sale completed** → Store outcome → Analyze conversation with Claude → Extract successful patterns → Update knowledge base → Future AI suggestions improve
 
