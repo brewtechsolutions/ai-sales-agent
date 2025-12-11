@@ -7,6 +7,8 @@ interface User {
   id: string;
   email: string;
   name: string | null;
+  role: 'super_admin' | 'company_admin' | 'company_user';
+  company_id?: string | null;
 }
 
 export const useAuth = () => {
@@ -24,7 +26,19 @@ export const useAuth = () => {
       const response = await client.auth.login.mutate({ email, password });
       user.value = response.user;
       token.value = response.token;
-      router.push("/");
+      
+      // Route based on user role after login
+      const userRole = response.user.role;
+      if (userRole === 'super_admin') {
+        router.push("/admin/dashboard");
+      } else if (userRole === 'company_admin') {
+        router.push("/company/dashboard");
+      } else if (userRole === 'company_user') {
+        router.push("/agent/dashboard");
+      } else {
+        // Fallback to root (which will route based on role)
+        router.push("/");
+      }
     } catch (e) {
       error.value =
         e instanceof Error ? e.message : "An error occurred during login";

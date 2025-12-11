@@ -418,6 +418,8 @@ import { useCompanyStore } from "~/stores/useCompanyStore";
 definePageMeta({
   layout: "default",
   middleware: "auth",
+  requiresAuth: true,
+  requiredRole: "super_admin",
 });
 
 const companyStore = useCompanyStore();

@@ -114,10 +114,10 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { cn } from '@/lib/utils'
 
-// Meta
+// Meta - Auth pages should not require authentication
 definePageMeta({
   layout: false,
-  auth: false,
+  requiresAuth: false,
 })
 
 // Composables

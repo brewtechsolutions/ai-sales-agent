@@ -443,6 +443,8 @@ import { useTrpc } from "~/composables/useTrpc";
 definePageMeta({
   layout: "default",
   middleware: "auth",
+  requiresAuth: true,
+  requiredRole: "company_user",
 });
 
 const route = useRoute();

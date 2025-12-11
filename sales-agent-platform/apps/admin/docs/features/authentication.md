@@ -1,8 +1,8 @@
-# Authentication Pages
+# Authentication & Routing System
 
 ## Overview
 
-The authentication system provides a beautiful, iOS-inspired login and registration experience with excellent UX principles and full accessibility support.
+The authentication system provides a beautiful, iOS-inspired login and registration experience with excellent UX principles and full accessibility support. It includes role-based routing that automatically directs users to their appropriate dashboard based on their role.
 
 ## Pages
 
@@ -386,6 +386,146 @@ To customize the auth pages:
 2. **Modify Colors**: Update CSS variables in `assets/css/main.css`
 3. **Adjust Spacing**: Modify padding/margin classes
 4. **Change Validation**: Update Zod schema in script section
+
+## Authentication Flow & Routing
+
+### User Roles
+
+The system supports three user roles:
+
+1. **Super Admin** (`super_admin`)
+   - Platform owner
+   - Access to `/admin/*` routes
+   - Can manage all companies
+
+2. **Company Admin** (`company_admin`)
+   - Business owner
+   - Access to `/company/*` routes
+   - Manages company users and settings
+
+3. **Company User** (`company_user`)
+   - Sales agent
+   - Access to `/agent/*` routes
+   - Handles assigned conversations
+
+### Routing Logic
+
+#### Root Route (`/`)
+
+The root route (`pages/index.vue`) acts as a smart router:
+
+1. **Checks authentication** - If not authenticated, redirects to `/auth/login`
+2. **Routes by role** - After authentication, routes based on user role:
+   - `super_admin` → `/admin/dashboard`
+   - `company_admin` → `/company/dashboard`
+   - `company_user` → `/agent/dashboard`
+
+#### Login Flow
+
+After successful login:
+1. User credentials are validated
+2. User data (including role) is stored
+3. User is automatically routed to their role-specific dashboard
+
+#### Protected Routes
+
+All protected routes use the `auth` middleware:
+
+```vue
+definePageMeta({
+  layout: "default",
+  middleware: "auth",
+  requiresAuth: true,
+  requiredRole: "company_admin", // Optional: restrict to specific role
+});
+```
+
+### Middleware
+
+The authentication middleware (`middleware/auth.ts`) handles:
+
+1. **Authentication Check**
+   - Verifies user token
+   - Redirects to login if not authenticated
+
+2. **Auth Page Protection**
+   - Redirects authenticated users away from `/auth/*` pages
+   - Routes them to their appropriate dashboard
+
+3. **Role-Based Access Control**
+   - Checks `requiredRole` meta property
+   - Redirects users without required role to their dashboard
+   - Super admins can access all routes
+
+### Page Structure
+
+```
+pages/
+├── index.vue              # Smart router (routes by role)
+├── auth/
+│   ├── login.vue          # Public - login page
+│   └── register.vue       # Public - registration page
+├── admin/                 # Super admin routes
+│   ├── dashboard.vue       # Requires: super_admin
+│   ├── companies/
+│   └── templates/
+├── company/               # Company admin routes
+│   ├── dashboard.vue       # Requires: company_admin
+│   ├── users/
+│   ├── conversations/
+│   ├── products/
+│   └── ...
+└── agent/                 # Sales agent routes
+    ├── dashboard.vue       # Requires: company_user
+    └── conversations/
+```
+
+### Adding Role Protection to Pages
+
+To protect a page with role-based access:
+
+```vue
+<script setup lang="ts">
+definePageMeta({
+  layout: "default",
+  middleware: "auth",
+  requiresAuth: true,
+  requiredRole: "company_admin", // or "super_admin" or "company_user"
+});
+</script>
+```
+
+**Notes:**
+- `requiresAuth: true` - Requires authentication
+- `requiredRole` - Optional, restricts to specific role
+- Super admins can access all routes regardless of `requiredRole`
+- If role doesn't match, user is redirected to their dashboard
+
+### useAuth Composable
+
+The `useAuth` composable provides:
+
+```typescript
+const { 
+  user,           // Current user (reactive)
+  loading,       // Loading state
+  error,         // Error message
+  login,          // Login function
+  logout,         // Logout function
+  checkAuth       // Check authentication status
+} = useAuth()
+```
+
+**User Interface:**
+```typescript
+interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'super_admin' | 'company_admin' | 'company_user';
+  company_id?: string | null;
+}
+```
 
 ## Related Documentation
 

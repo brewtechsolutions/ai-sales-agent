@@ -337,6 +337,8 @@ import { useTrpc } from "~/composables/useTrpc";
 definePageMeta({
   layout: "default",
   middleware: "auth",
+  requiresAuth: true,
+  requiredRole: "super_admin",
 });
 
 const companyStore = useCompanyStore();
