@@ -117,13 +117,17 @@
 
           <!-- Terms & Conditions -->
           <div class="pt-2">
-            <UCheckbox
-              v-model="state.acceptTerms"
-              name="acceptTerms"
-              :disabled="isLoading"
-              class="text-sm sm:text-base"
-            >
-              <span class="text-text-primary dark:text-dark-text-primary">
+            <div class="flex items-start gap-3">
+              <UCheckbox
+                v-model="state.acceptTerms"
+                name="acceptTerms"
+                :disabled="isLoading"
+                class="mt-0.5"
+              />
+              <label
+                for="acceptTerms"
+                class="text-sm sm:text-base text-text-primary dark:text-dark-text-primary cursor-pointer flex-1"
+              >
                 I agree to the
                 <a
                   href="/terms"
@@ -140,8 +144,8 @@
                 >
                   Privacy Policy
                 </a>
-              </span>
-            </UCheckbox>
+              </label>
+            </div>
           </div>
 
           <!-- Submit Button -->
