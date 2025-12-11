@@ -1,5 +1,5 @@
-@import "@nuxt/ui";
 @import "tailwindcss";
+@import "@nuxt/ui";
 
 /* 
  * Tailwind CSS v4 Theme Configuration
@@ -22,18 +22,18 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* 🎨 Primary brand color (Sky Blue) */
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --primary-50: 204 100% 97%;
-    --primary-100: 204 96% 94%;
-    --primary-200: 201 96% 89%;
-    --primary-300: 199 95% 80%;
-    --primary-400: 196 94% 68%;
-    --primary-600: 213 94% 43%;
-    --primary-700: 217 91% 36%;
-    --primary-800: 222 84% 30%;
-    --primary-900: 224 76% 25%;
+    /* 🎨 Primary brand color (Light Green - WhatsApp style, slightly lighter) */
+    --primary: 142 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-50: 142 80% 96%;
+    --primary-100: 142 75% 90%;
+    --primary-200: 142 70% 82%;
+    --primary-300: 142 68% 70%;
+    --primary-400: 142 69% 62%;
+    --primary-600: 142 71% 48%;
+    --primary-700: 142 72% 40%;
+    --primary-800: 142 73% 32%;
+    --primary-900: 142 75% 25%;
 
     /* 🎨 Secondary brand color */
     --secondary: 210 40% 96.1%;
@@ -72,7 +72,7 @@
     /* 🌅 Light mode - Borders & Inputs */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 142 70% 55%;
     --radius: 0.5rem;
   }
 
@@ -89,18 +89,18 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    /* 🎨 Primary brand color (lighter for dark mode) */
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --primary-50: 224 76% 25%;
-    --primary-100: 222 84% 30%;
-    --primary-200: 217 91% 36%;
-    --primary-300: 213 94% 43%;
-    --primary-400: 199 95% 68%;
-    --primary-600: 196 94% 80%;
-    --primary-700: 201 96% 89%;
-    --primary-800: 204 96% 94%;
-    --primary-900: 204 100% 97%;
+    /* 🎨 Primary brand color (Light Green - Dark mode, slightly brighter) */
+    --primary: 142 70% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-50: 142 75% 25%;
+    --primary-100: 142 73% 32%;
+    --primary-200: 142 72% 40%;
+    --primary-300: 142 71% 48%;
+    --primary-400: 142 69% 62%;
+    --primary-600: 142 68% 70%;
+    --primary-700: 142 70% 82%;
+    --primary-800: 142 75% 90%;
+    --primary-900: 142 80% 96%;
 
     /* 🎨 Secondary brand color */
     --secondary: 217.2 32.6% 17.5%;
@@ -157,6 +157,33 @@
  * to support runtime theming via CSS variables
  */
 @theme {
+  /* 🎨 Primary brand color - Maps CSS variables to Tailwind utilities */
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-50: hsl(var(--primary-50));
+  --color-primary-100: hsl(var(--primary-100));
+  --color-primary-200: hsl(var(--primary-200));
+  --color-primary-300: hsl(var(--primary-300));
+  --color-primary-400: hsl(var(--primary-400));
+  --color-primary-500: hsl(var(--primary));
+  --color-primary-600: hsl(var(--primary-600));
+  --color-primary-700: hsl(var(--primary-700));
+  --color-primary-800: hsl(var(--primary-800));
+  --color-primary-900: hsl(var(--primary-900));
+  
+  /* Override Tailwind's default blue to use our primary */
+  --color-blue: hsl(var(--primary));
+  --color-blue-50: hsl(var(--primary-50));
+  --color-blue-100: hsl(var(--primary-100));
+  --color-blue-200: hsl(var(--primary-200));
+  --color-blue-300: hsl(var(--primary-300));
+  --color-blue-400: hsl(var(--primary-400));
+  --color-blue-500: hsl(var(--primary));
+  --color-blue-600: hsl(var(--primary-600));
+  --color-blue-700: hsl(var(--primary-700));
+  --color-blue-800: hsl(var(--primary-800));
+  --color-blue-900: hsl(var(--primary-900));
+  
   /* iOS-style border radius */
   --radius-ios: 12px;
   --radius-ios-lg: 16px;
@@ -185,18 +212,18 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* 🎨 Primary brand color (Sky Blue) */
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --primary-50: 204 100% 97%;
-    --primary-100: 204 96% 94%;
-    --primary-200: 201 96% 89%;
-    --primary-300: 199 95% 80%;
-    --primary-400: 196 94% 68%;
-    --primary-600: 213 94% 43%;
-    --primary-700: 217 91% 36%;
-    --primary-800: 222 84% 30%;
-    --primary-900: 224 76% 25%;
+    /* 🎨 Primary brand color (Light Green - WhatsApp style, slightly lighter) */
+    --primary: 142 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-50: 142 80% 96%;
+    --primary-100: 142 75% 90%;
+    --primary-200: 142 70% 82%;
+    --primary-300: 142 68% 70%;
+    --primary-400: 142 69% 62%;
+    --primary-600: 142 71% 48%;
+    --primary-700: 142 72% 40%;
+    --primary-800: 142 73% 32%;
+    --primary-900: 142 75% 25%;
 
     /* 🎨 Secondary brand color */
     --secondary: 210 40% 96.1%;
@@ -235,7 +262,7 @@
     /* 🌅 Light mode - Borders & Inputs */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 142 70% 55%;
     --radius: 0.5rem;
   }
 
@@ -252,18 +279,18 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    /* 🎨 Primary brand color (lighter for dark mode) */
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --primary-50: 224 76% 25%;
-    --primary-100: 222 84% 30%;
-    --primary-200: 217 91% 36%;
-    --primary-300: 213 94% 43%;
-    --primary-400: 199 95% 68%;
-    --primary-600: 196 94% 80%;
-    --primary-700: 201 96% 89%;
-    --primary-800: 204 96% 94%;
-    --primary-900: 204 100% 97%;
+    /* 🎨 Primary brand color (Light Green - Dark mode, slightly brighter) */
+    --primary: 142 70% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-50: 142 75% 25%;
+    --primary-100: 142 73% 32%;
+    --primary-200: 142 72% 40%;
+    --primary-300: 142 71% 48%;
+    --primary-400: 142 69% 62%;
+    --primary-600: 142 68% 70%;
+    --primary-700: 142 70% 82%;
+    --primary-800: 142 75% 90%;
+    --primary-900: 142 80% 96%;
 
     /* 🎨 Secondary brand color */
     --secondary: 217.2 32.6% 17.5%;

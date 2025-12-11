@@ -34,13 +34,30 @@ export default {
   darkMode: "selector",
   
   // Theme configuration - maps CSS variables to Tailwind utilities
+  // IMPORTANT: Override both 'primary' and 'blue' to ensure Nuxt UI uses our custom colors
   theme: {
     extend: {
       colors: {
-        // 🎨 Primary brand color
+        // 🎨 Primary brand color - OVERRIDES Nuxt UI default blue
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          50: "hsl(var(--primary-50))",
+          100: "hsl(var(--primary-100))",
+          200: "hsl(var(--primary-200))",
+          300: "hsl(var(--primary-300))",
+          400: "hsl(var(--primary-400))",
+          500: "hsl(var(--primary))",
+          600: "hsl(var(--primary-600))",
+          700: "hsl(var(--primary-700))",
+          800: "hsl(var(--primary-800))",
+          900: "hsl(var(--primary-900))",
+        },
+        
+        // Override Tailwind's default 'blue' to use our primary color
+        // This ensures Nuxt UI's primary: "blue" uses our custom colors
+        blue: {
+          DEFAULT: "hsl(var(--primary))",
           50: "hsl(var(--primary-50))",
           100: "hsl(var(--primary-100))",
           200: "hsl(var(--primary-200))",

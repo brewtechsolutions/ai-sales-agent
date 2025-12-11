@@ -8,7 +8,8 @@ The admin app uses a semantic color system with full dark mode support and iOS-i
 
 ## Quick Links
 
-- [Theme Configuration](./theme-configuration.md) - **Start here** - How Tailwind v4 is configured
+- [**CHANGE BRAND COLORS**](./CHANGE-BRAND-COLORS.md) - **Quick 3-step guide** to change your brand colors
+- [Theme Configuration](./theme-configuration.md) - How Tailwind v4 is configured
 - [Colors](./colors.md) - Color palette and usage
 - [Typography](./typography.md) - Font styles and usage
 - [Spacing](./spacing.md) - Spacing scale
