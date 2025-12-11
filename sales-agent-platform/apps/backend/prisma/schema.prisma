@@ -7,43 +7,602 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           String         @id @default(uuid())
-  email        String?        @unique
-  phoneNumber  String?        @unique
-  name         String?
-  password     String?
-  provider     String         @default("email")
-  firebaseUid  String?        @unique
-  lastLoginAt  DateTime?      // Track last login for inactivity check
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+// ============================================
+// MULTI-TENANT CORE
+// ============================================
 
-  refreshTokens UserRefreshToken[]
-  products     Product[]
+model Company {
+  id                String   @id @default(uuid())
+  name              String
+  slug              String   @unique
+  logoUrl           String?  @map("logo_url")
+  industryCategory  String?  @map("industry_category")
+  webhookSecret     String?  @map("webhook_secret")
+  subscriptionPlan  String?  @map("subscription_plan")
+  status            String   @default("trial") // active, suspended, trial
+  // Localization fields
+  country           String?
+  preferredLanguage String?  @map("preferred_language") // en, ms, zh, ta
+  additionalLanguages Json?  @map("additional_languages") // ["en", "ms"]
+  currency          String?  // MYR, SGD, IDR
+  timezone          String?  // Asia/Kuala_Lumpur
+  dateFormat        String?  @map("date_format") // DD/MM/YYYY
+  settings          Json?    // ai_settings, business_hours, etc
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  users              User[]
+  companySettings    CompanySettings?
+  integrations       CompanyIntegration?
+  products           Product[]
+  packages           Package[]
+  trainingMaterials  TrainingMaterial[]
+  faqs               FAQ[]
+  aiKnowledgeBase    AIKnowledgeBase[]
+  aiModelConfigs     AIModelConfig[]
+  contacts            Contact[]
+  conversations      Conversation[]
+  successfulPatterns  SuccessfulPattern[]
+  templates           SuccessCaseTemplate[]
+  templateSelections  CompanyTemplateSelection[]
+  analyticsEvents     AnalyticsEvent[]
+  rlhfTrainingData    RLHFTrainingData[]
+  integrationCredentialLogs IntegrationCredentialLog[]
+  aiModelTests        AIModelTest[]
+
+  @@index([country])
+  @@map("companies")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  companyId   String?  @map("company_id")
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  email       String   @unique
+  passwordHash String? @map("password_hash")
+  role        String   // super_admin, company_admin, company_user
+  status      String   @default("active") // active, inactive
+  avatarUrl   String?  @map("avatar_url")
+  metadata    Json?    // expertise, departments, etc
+  createdAt   DateTime @default(now()) @map("created_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  refreshTokens         UserRefreshToken[]
+  assignedConversations Conversation[] @relation("AssignedTo")
+  assignedByConversations Conversation[] @relation("AssignedBy")
+  conversationAssignmentsFrom ConversationAssignment[] @relation("FromUser")
+  conversationAssignmentsTo ConversationAssignment[] @relation("ToUser")
+  conversationAssignmentsBy ConversationAssignment[] @relation("AssignedByUser")
+  createdAIModels       AIModelConfig[] @relation("CreatedBy")
+  createdTemplates      SuccessCaseTemplate[] @relation("CreatedBy")
+  createdTemplateTests  AIModelTest[] @relation("CreatedBy")
+  createdIntegrations   CompanyIntegration[] @relation("CreatedBy")
+  updatedIntegrations   CompanyIntegration[] @relation("UpdatedBy")
+  integrationLogs       IntegrationCredentialLog[] @relation("ChangedBy")
+  rlhfTrainingData      RLHFTrainingData[] @relation("Agent")
+
+  @@index([companyId])
+  @@index([role])
+  @@map("users")
 }
 
 model UserRefreshToken {
   id          String   @id @default(uuid())
-  token       String   @unique // This is the refresh token
-  accessToken String?  // This is the active access token for this session
-  userId      String
+  token       String   @unique
+  accessToken String?  @map("access_token")
+  userId      String   @map("user_id")
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt   DateTime
+  expiresAt   DateTime @map("expires_at")
   revoked     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("user_refresh_tokens")
 }
+
+// ============================================
+// COMPANY CONFIGURATION
+// ============================================
+
+model CompanySettings {
+  id                String   @id @default(uuid())
+  companyId         String   @unique @map("company_id")
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  brandVoice        String?  @map("brand_voice")
+  responseTone      String?  @map("response_tone")
+  aiTemperature     Decimal? @map("ai_temperature") @db.Decimal(2, 1)
+  autoAssignEnabled Boolean? @default(false) @map("auto_assign_enabled")
+  assignmentStrategy String? @map("assignment_strategy") // round_robin, manual, workload
+  businessHours     Json?    @map("business_hours")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@map("company_settings")
+}
+
+model IndustryCategory {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  defaultAIPrompt String?  @map("default_ai_prompt")
+  commonObjections Json?   @map("common_objections")
+  categoryTips    String?  @map("category_tips")
+
+  @@map("industry_categories")
+}
+
+// ============================================
+// INTEGRATION CREDENTIALS
+// ============================================
+
+model CompanyIntegration {
+  id                        String   @id @default(uuid())
+  companyId                 String   @unique @map("company_id")
+  company                   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // WhatsApp/OnSend (encrypted)
+  onsendApiKeyEncrypted     String?  @map("onsend_api_key_encrypted")
+  onsendApiSecretEncrypted  String?  @map("onsend_api_secret_encrypted")
+  onsendPhoneNumberId       String?  @map("onsend_phone_number_id")
+  onsendWebhookSecret       String?  @map("onsend_webhook_secret")
+  onsendConnectionStatus    String?  @map("onsend_connection_status") // connected, disconnected, error
+  onsendLastConnectedAt     DateTime? @map("onsend_last_connected_at")
+  onsendLastError           String?  @map("onsend_last_error")
+  // Telegram (encrypted)
+  telegramBotTokenEncrypted String?  @map("telegram_bot_token_encrypted")
+  telegramBotUsername       String?  @map("telegram_bot_username")
+  telegramWebhookSecret     String?  @map("telegram_webhook_secret")
+  telegramConnectionStatus  String?  @map("telegram_connection_status")
+  telegramLastConnectedAt  DateTime? @map("telegram_last_connected_at")
+  telegramLastError         String?  @map("telegram_last_error")
+  // Webhook URLs (auto-generated)
+  whatsappWebhookUrl        String?  @map("whatsapp_webhook_url")
+  telegramWebhookUrl         String?  @map("telegram_webhook_url")
+  // Metadata
+  createdBy                 String?  @map("created_by")
+  createdByUser             User?    @relation("CreatedBy", fields: [createdBy], references: [id])
+  updatedBy                 String?  @map("updated_by")
+  updatedByUser             User?    @relation("UpdatedBy", fields: [updatedBy], references: [id])
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  credentialLogs IntegrationCredentialLog[]
+
+  @@index([companyId])
+  @@map("company_integrations")
+}
+
+model IntegrationCredentialLog {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  integrationId   String?  @map("integration_id")
+  integration     CompanyIntegration? @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  integrationType String   @map("integration_type") // whatsapp, telegram
+  action          String   // added, updated, tested, revoked
+  changedBy       String   @map("changed_by")
+  changedByUser   User     @relation("ChangedBy", fields: [changedBy], references: [id])
+  ipAddress       String?  @map("ip_address")
+  userAgent       String?  @map("user_agent")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, createdAt])
+  @@map("integration_credential_logs")
+}
+
+// ============================================
+// PRODUCTS & SERVICES
+// ============================================
 
 model Product {
   id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  price       Float
-  stock       Int      @default(0)
-  image       String?
-  user        User     @relation(fields: [userId], references: [id])
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  price       Decimal  @db.Decimal(10, 2)
+  currency    String?  @default("MYR")
+  imageUrl    String?  @map("image_url")
+  category    String?
+  stockStatus String?  @map("stock_status") // in_stock, out_of_stock, limited
+  sku         String?
+  metadata    Json?    // specs, links, custom_fields
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@map("products")
+}
+
+model Package {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name            String
+  tier            String?  // basic, standard, premium
+  productIds      Json?    @map("product_ids") // [product_id1, product_id2, ...]
+  totalPrice      Decimal? @map("total_price") @db.Decimal(10, 2)
+  discountPercentage Decimal? @map("discount_percentage") @db.Decimal(5, 2)
+  imageUrl        String?  @map("image_url")
+  description     String?
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@map("packages")
+}
+
+// ============================================
+// AI TRAINING & MODEL CONFIGURATION
+// ============================================
+
+model TrainingMaterial {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        String   // document, faq, sample_conversation, guideline
+  title       String
+  content     String?
+  fileUrl     String?  @map("file_url")
+  status      String   @default("uploaded") // uploaded, processing, processed, failed
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, status])
+  @@map("training_materials")
+}
+
+model FAQ {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  question    String
+  answer      String
+  category    String?
+  usageCount  Int      @default(0) @map("usage_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@map("faqs")
+}
+
+model AIKnowledgeBase {
+  id            String   @id @default(uuid())
+  companyId     String   @map("company_id")
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  topic         String
+  content       String
+  source        String?  // product, training, successful_conversation
+  relevanceScore Decimal? @map("relevance_score") @db.Decimal(3, 2)
+  lastUpdated   DateTime? @map("last_updated")
+
+  @@unique([companyId, topic])
+  @@index([companyId])
+  @@map("ai_knowledge_base")
+}
+
+model AIModelConfig {
+  id                        String   @id @default(uuid())
+  companyId                 String   @map("company_id")
+  company                   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  version                   String
+  isActive                  Boolean  @default(false) @map("is_active")
+  systemPrompt              String?  @map("system_prompt")
+  responseStyle             String?  @map("response_style") // formal, casual, friendly, professional
+  languageConfig            Json?    @map("language_config")
+  temperature               Decimal  @default(0.7) @db.Decimal(2, 1)
+  maxTokens                 Int      @default(1000) @map("max_tokens")
+  trainingDataIds           Json?    @map("training_data_ids")
+  successPatternsWeight     Decimal  @default(0.3) @map("success_patterns_weight") @db.Decimal(3, 2)
+  productCatalogWeight      Decimal  @default(0.2) @map("product_catalog_weight") @db.Decimal(3, 2)
+  faqWeight                 Decimal  @default(0.2) @map("faq_weight") @db.Decimal(3, 2)
+  trainingMaterialsWeight   Decimal  @default(0.3) @map("training_materials_weight") @db.Decimal(3, 2)
+  autoResponseEnabled       Boolean  @default(false) @map("auto_response_enabled")
+  autoResponseTriggers      Json?    @map("auto_response_triggers")
+  testResults               Json?    @map("test_results")
+  performanceMetrics        Json?    @map("performance_metrics")
+  // RLHF Configuration
+  rlhfEnabled               Boolean  @default(true) @map("rlhf_enabled")
+  rlhfHumanLikenessTarget   Decimal  @default(0.85) @map("rlhf_human_likeness_target") @db.Decimal(3, 2)
+  rlhfLearningRate           Decimal  @default(0.1) @map("rlhf_learning_rate") @db.Decimal(3, 2)
+  rlhfStyleMatching          String?  @default("top_agent") @map("rlhf_style_matching") // top_agent, company_average, custom
+  rlhfRoboticPhraseDetection Boolean  @default(true) @map("rlhf_robotic_phrase_detection")
+  rlhfNaturalFlowEnabled     Boolean  @default(true) @map("rlhf_natural_flow_enabled")
+  rlhfMetrics                Json?    @map("rlhf_metrics")
+  createdBy                  String?  @map("created_by")
+  createdByUser              User?    @relation("CreatedBy", fields: [createdBy], references: [id])
+  createdAt                  DateTime @default(now()) @map("created_at")
+  deployedAt                 DateTime? @map("deployed_at")
+  notes                      String?
+
+  tests                      AIModelTest[]
+  rlhfTrainingData           RLHFTrainingData[]
+
+  @@unique([companyId, version])
+  @@index([companyId, isActive])
+  @@map("ai_model_configs")
+}
+
+model AIModelTest {
+  id                  String   @id @default(uuid())
+  companyId           String   @map("company_id")
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  modelConfigId       String   @map("model_config_id")
+  modelConfig         AIModelConfig @relation(fields: [modelConfigId], references: [id], onDelete: Cascade)
+  testName            String   @map("test_name")
+  scenarioDescription String?  @map("scenario_description")
+  customerMessage     String   @map("customer_message")
+  expectedResponseType String?  @map("expected_response_type")
+  actualResponse      String?  @map("actual_response")
+  testResult          String?  @map("test_result") // passed, failed, needs_review
+  testMetrics         Json?    @map("test_metrics")
+  adminFeedback       String?  @map("admin_feedback")
+  createdBy           String?  @map("created_by")
+  createdByUser       User?    @relation("CreatedBy", fields: [createdBy], references: [id])
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, modelConfigId])
+  @@map("ai_model_tests")
+}
+
+// ============================================
+// SUCCESS CASE TEMPLATES
+// ============================================
+
+model SuccessCaseTemplate {
+  id                    String   @id @default(uuid())
+  companyId             String?  @map("company_id") // NULL for global templates
+  company               Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                  String
+  description           String?
+  category              String?  // greeting, objection_handling, product_inquiry, closing, follow_up
+  industryCategory      String?  @map("industry_category")
+  language              String   @default("en") // en, zh, bm
+  isGlobal              Boolean  @default(false) @map("is_global")
+  isRecommended         Boolean  @default(false) @map("is_recommended")
+  priority              Int      @default(0)
+  customerMessagePatterns Json?  @map("customer_message_patterns")
+  customerMessageExamples Json? @map("customer_message_examples")
+  agentResponse         String?  @map("agent_response")
+  agentResponseVariations Json?  @map("agent_response_variations")
+  contextDescription    String?  @map("context_description")
+  expectedOutcome       String?  @map("expected_outcome")
+  followUpActions      String?  @map("follow_up_actions")
+  localizedVersions     Json?    @map("localized_versions")
+  usageCount            Int      @default(0) @map("usage_count")
+  successRate           Decimal? @map("success_rate") @db.Decimal(5, 2)
+  effectivenessScore    Decimal? @default(0.0) @map("effectiveness_score") @db.Decimal(3, 2)
+  createdBy             String?  @map("created_by")
+  createdByUser         User?    @relation("CreatedBy", fields: [createdBy], references: [id])
+  version               Int      @default(1)
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  companySelections     CompanyTemplateSelection[]
+
+  @@index([language])
+  @@index([industryCategory])
+  @@index([isGlobal, isActive])
+  @@map("success_case_templates")
+}
+
+model CompanyTemplateSelection {
+  id                String   @id @default(uuid())
+  companyId         String   @map("company_id")
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  templateId        String   @map("template_id")
+  template          SuccessCaseTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  isEnabled         Boolean  @default(true) @map("is_enabled")
+  isPreferred       Boolean  @default(false) @map("is_preferred")
+  priority          Int      @default(0)
+  customModifications Json?  @map("custom_modifications")
+  usageCount        Int      @default(0) @map("usage_count")
+  lastUsedAt        DateTime? @map("last_used_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@unique([companyId, templateId])
+  @@index([companyId, isEnabled])
+  @@index([companyId, isPreferred, priority])
+  @@map("company_template_selections")
+}
+
+// ============================================
+// CRM & CONTACTS
+// ============================================
+
+model Contact {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name            String?
+  phone           String?
+  email           String?
+  platform        String   // whatsapp, telegram
+  platformId      String?  @map("platform_id") // WhatsApp ID or Telegram chat_id
+  behaviorScore   Int      @default(50) @map("behavior_score") // 0-100
+  scoreColor      String?  @map("score_color") // green, yellow, red
+  tags            Json?    // [tag1, tag2, ...]
+  lastInteraction DateTime? @map("last_interaction")
+  totalMessages   Int      @default(0) @map("total_messages")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  conversations   Conversation[]
+
+  @@index([companyId])
+  @@index([behaviorScore])
+  @@map("contacts")
+}
+
+// ============================================
+// CONVERSATIONS & ASSIGNMENT
+// ============================================
+
+model Conversation {
+  id                    String   @id @default(uuid())
+  companyId             String   @map("company_id")
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId             String   @map("contact_id")
+  contact               Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedTo            String?  @map("assigned_to")
+  assignedToUser        User?    @relation("AssignedTo", fields: [assignedTo], references: [id])
+  assignedBy            String?  @map("assigned_by")
+  assignedByUser        User?    @relation("AssignedBy", fields: [assignedBy], references: [id])
+  status                String   @default("new") // new, in_progress, waiting, completed, lost
+  saleAmount            Decimal? @map("sale_amount") @db.Decimal(10, 2)
+  productsSold          Json?    @map("products_sold")
+  isSuccess             Boolean  @default(false) @map("is_success")
+  completedAt           DateTime? @map("completed_at")
+  aiEffectivenessRating Int?     @map("ai_effectiveness_rating") // 1-5 stars
+  notes                 String?
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  messages              Message[]
+  assignments           ConversationAssignment[]
+  aiSuggestions         AISuggestion[]
+  successfulPatterns    SuccessfulPattern[]
+
+  @@index([assignedTo])
+  @@index([companyId])
+  @@map("conversations")
+}
+
+model ConversationAssignment {
+  id              String   @id @default(uuid())
+  conversationId  String   @map("conversation_id")
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  fromUserId      String?  @map("from_user_id")
+  fromUser        User?    @relation("FromUser", fields: [fromUserId], references: [id])
+  toUserId        String   @map("to_user_id")
+  toUser          User     @relation("ToUser", fields: [toUserId], references: [id])
+  assignedBy      String   @map("assigned_by")
+  assignedByUser  User     @relation("AssignedByUser", fields: [assignedBy], references: [id])
+  reason          String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([conversationId])
+  @@map("conversation_assignments")
+}
+
+model Message {
+  id                    String   @id @default(uuid())
+  conversationId         String   @map("conversation_id")
+  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  content                String
+  senderType             String   @map("sender_type") // contact, agent, ai_bot
+  senderId               String?  @map("sender_id") // user_id if agent
+  suggestedByAI          Boolean  @default(false) @map("suggested_by_ai")
+  agentUsedSuggestion    Boolean  @default(false) @map("agent_used_suggestion")
+  mediaUrl               String?  @map("media_url")
+  mediaType              String?  @map("media_type")
+  timestamp              DateTime @default(now())
+  readAt                 DateTime? @map("read_at")
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// ============================================
+// AI LEARNING & RLHF
+// ============================================
+
+model SuccessfulPattern {
+  id                String   @id @default(uuid())
+  companyId         String   @map("company_id")
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  conversationId    String   @map("conversation_id")
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  category          String?
+  patternSummary    String?  @map("pattern_summary")
+  keyMessages       Json?    @map("key_messages")
+  outcomeData       Json?    @map("outcome_data")
+  usedForTraining   Boolean  @default(false) @map("used_for_training")
+  effectivenessScore Decimal? @map("effectiveness_score") @db.Decimal(3, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@map("successful_patterns")
+}
+
+model AISuggestion {
+  id                    String   @id @default(uuid())
+  conversationId         String   @map("conversation_id")
+  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  suggestedMessage      String   @map("suggested_message")
+  wasUsed               Boolean  @default(false) @map("was_used")
+  agentRating           Int?     @map("agent_rating") // 1-5 stars
+  modifiedVersion       String?  @map("modified_version")
+  // RLHF Data Collection
+  agentActualResponse   String?  @map("agent_actual_response")
+  editDistance          Int?     @map("edit_distance")
+  wasManualOverride     Boolean  @default(false) @map("was_manual_override")
+  customerResponseQuality String? @map("customer_response_quality") // positive, neutral, negative
+  humanLikenessScore    Decimal? @map("human_likeness_score") @db.Decimal(3, 2)
+  roboticPhrasesDetected Json?   @map("robotic_phrases_detected")
+  naturalLanguageScore  Decimal? @map("natural_language_score") @db.Decimal(3, 2)
+  usedForRLHFTraining   Boolean  @default(false) @map("used_for_rlhf_training")
+  metadata              Json?    // model_version, template_id, etc
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  rlhfTrainingData      RLHFTrainingData[]
+
+  @@index([conversationId])
+  @@map("ai_suggestions")
+}
+
+model RLHFTrainingData {
+  id                    String   @id @default(uuid())
+  companyId             String   @map("company_id")
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  modelConfigId         String?  @map("model_config_id")
+  modelConfig           AIModelConfig? @relation(fields: [modelConfigId], references: [id], onDelete: Cascade)
+  // Human Agent Response (preferred)
+  agentResponse         String   @map("agent_response")
+  agentId               String   @map("agent_id")
+  agent                 User     @relation("Agent", fields: [agentId], references: [id])
+  conversationContext   String?  @map("conversation_context")
+  customerMessage       String?  @map("customer_message")
+  // AI Suggestion (rejected or modified)
+  aiSuggestionId        String?  @map("ai_suggestion_id")
+  aiSuggestion          AISuggestion? @relation(fields: [aiSuggestionId], references: [id])
+  aiSuggestedMessage    String?  @map("ai_suggested_message")
+  // Feedback Signals
+  feedbackType          String?  @map("feedback_type") // used_as_is, modified, rejected, manual_override
+  editDetails           Json?    @map("edit_details")
+  agentRating           Int?     @map("agent_rating")
+  customerEngagementScore Decimal? @map("customer_engagement_score") @db.Decimal(3, 2)
+  // Learning Signals
+  humanLikenessScore    Decimal? @map("human_likeness_score") @db.Decimal(3, 2)
+  naturalLanguageScore  Decimal? @map("natural_language_score") @db.Decimal(3, 2)
+  styleMatchScore       Decimal? @map("style_match_score") @db.Decimal(3, 2)
+  // Metadata
+  conversationOutcome   String?  @map("conversation_outcome") // won, lost, ongoing
+  saleAmount            Decimal? @map("sale_amount") @db.Decimal(10, 2)
+  createdAt             DateTime @default(now()) @map("created_at")
+  usedInTraining        Boolean  @default(false) @map("used_in_training")
+  trainingBatchId       String?  @map("training_batch_id")
+
+  @@index([companyId, modelConfigId])
+  @@index([usedInTraining])
+  @@map("rlhf_training_data")
+}
+
+// ============================================
+// ANALYTICS
+// ============================================
+
+model AnalyticsEvent {
+  id              String   @id @default(uuid())
+  companyId       String   @map("company_id")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId          String?  @map("user_id")
+  eventType       String   @map("event_type") // conversation_assigned, message_sent, sale_completed, etc
+  conversationId  String?  @map("conversation_id")
+  metadata        Json?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, createdAt])
+  @@map("analytics_events")
 }

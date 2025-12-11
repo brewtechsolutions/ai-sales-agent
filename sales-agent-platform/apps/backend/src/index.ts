@@ -6,6 +6,9 @@ import { createContext } from "./trpc/context";
 import { prisma } from "./prisma";
 import { requestLogger } from "./middleware/logger";
 import { logger } from "./utils/logger";
+import { handleWhatsAppWebhook } from "./webhooks/whatsapp";
+import { handleTelegramWebhook } from "./webhooks/telegram";
+import { startScheduler } from "./jobs/scheduler";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -30,6 +33,10 @@ app.use(express.json());
 // Request logging middleware
 app.use(requestLogger);
 
+// Webhook routes (must be before body parsing for signature verification)
+app.post("/webhook/:companyId/whatsapp", handleWhatsAppWebhook);
+app.post("/webhook/:companyId/telegram", handleTelegramWebhook);
+
 app.use(
   "/trpc",
   trpcExpress.createExpressMiddleware({
@@ -42,6 +49,9 @@ const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
   logger.info("Server started", { port: PORT, environment: process.env.NODE_ENV || "development" });
+  
+  // Start scheduled jobs
+  startScheduler();
 });
 
 process.on("SIGTERM", () => {

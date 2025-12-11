@@ -2,21 +2,12 @@ import { inferAsyncReturnType } from "@trpc/server";
 import { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import { prisma } from "../prisma";
 import jwt from "jsonwebtoken";
+import { getInactivityThreshold } from "../utils/dates";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 // Inactivity logout period in days (default: 365 days = 1 year)
 const INACTIVITY_LOGOUT_DAYS = parseInt(process.env.INACTIVITY_LOGOUT_DAYS || "365", 10);
-
-/**
- * Get the date threshold for inactivity check
- * Returns a date that is INACTIVITY_LOGOUT_DAYS ago from now
- */
-function getInactivityThreshold(): Date {
-  const threshold = new Date();
-  threshold.setDate(threshold.getDate() - INACTIVITY_LOGOUT_DAYS);
-  return threshold;
-}
 
 export const createContext = async ({
   req,
@@ -55,23 +46,40 @@ export const createContext = async ({
       return { prisma, req, res, user: null };
     }
 
-    // Check if user has been inactive for the configured period
+    // Get full user with company information (for multi-tenancy)
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { lastLoginAt: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        companyId: true,
+        lastLoginAt: true,
+        company: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+      },
     });
 
-    if (user) {
-      const inactivityThreshold = getInactivityThreshold();
-      
-      if (!user.lastLoginAt || user.lastLoginAt < inactivityThreshold) {
-        // Revoke session and return null user
-        await prisma.userRefreshToken.updateMany({
-          where: { userId: decoded.userId },
-          data: { revoked: true },
-        });
-        return { prisma, req, res, user: null };
-      }
+    if (!user) {
+      return { prisma, req, res, user: null };
+    }
+
+    // Check if user has been inactive for the configured period
+    const inactivityThreshold = getInactivityThreshold(INACTIVITY_LOGOUT_DAYS);
+    
+    if (!user.lastLoginAt || user.lastLoginAt < inactivityThreshold) {
+      // Revoke session and return null user
+      await prisma.userRefreshToken.updateMany({
+        where: { userId: decoded.userId },
+        data: { revoked: true },
+      });
+      return { prisma, req, res, user: null };
     }
 
     return {
@@ -79,8 +87,12 @@ export const createContext = async ({
       req,
       res,
       user: {
-        id: decoded.userId,
-        email: decoded.email,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyId: user.companyId,
+        company: user.company,
       },
     };
   } catch (error) {

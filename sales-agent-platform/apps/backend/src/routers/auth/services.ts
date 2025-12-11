@@ -4,6 +4,7 @@ import { prisma } from "../../prisma";
 import { GoogleLoginInput, RefreshTokenInput, PhoneLoginInput, FirebaseLoginInput, FirebaseRegisterInput } from "./schemas";
 import { auth } from "../../config/firebase";
 import { randomUUID } from "crypto";
+import { getInactivityThreshold, addDays } from "../../utils/dates";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -15,22 +16,13 @@ const INACTIVITY_LOGOUT_DAYS = parseInt(process.env.INACTIVITY_LOGOUT_DAYS || "3
 const REFRESH_TOKEN_DAYS = parseInt(process.env.REFRESH_TOKEN_DAYS || "400", 10);
 
 const ACCESS_TOKEN_EXPIRES_IN: any = process.env.ACCESS_TOKEN_EXPIRES_IN || "15m";
-/**
- * Get the date threshold for inactivity check
- * Returns a date that is INACTIVITY_LOGOUT_DAYS ago from now
- */
-function getInactivityThreshold(): Date {
-  const threshold = new Date();
-  threshold.setDate(threshold.getDate() - INACTIVITY_LOGOUT_DAYS);
-  return threshold;
-}
 
 /**
  * Get refresh token expiry date
  * Returns a date that is REFRESH_TOKEN_DAYS from now
  */
 function getRefreshTokenExpiry(): Date {
-  return new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+  return addDays(new Date(), REFRESH_TOKEN_DAYS);
 }
 
 export const getMe = async (userId: string) => {
@@ -218,7 +210,7 @@ export const refreshToken = async (input: RefreshTokenInput) => {
     }
 
     // Check if user has been inactive for the configured period
-    const inactivityThreshold = getInactivityThreshold();
+    const inactivityThreshold = getInactivityThreshold(INACTIVITY_LOGOUT_DAYS);
     
     if (!storedToken.user.lastLoginAt || storedToken.user.lastLoginAt < inactivityThreshold) {
       // Revoke token and force re-login

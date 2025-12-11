@@ -2,12 +2,11 @@ import { initTRPC } from "@trpc/server";
 import { Context } from "./context";
 import superjson from "superjson";
 import { logger } from "../utils/logger";
+import { isAuthenticated } from "../middleware/auth";
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
 });
-
-import { isAuthenticated } from "../middleware/auth";
 
 // Logging middleware for tRPC procedures
 const loggingMiddleware = t.middleware(async (opts: any) => {
@@ -40,4 +39,12 @@ export const router = t.router;
 export const publicProcedure = t.procedure.use(loggingMiddleware);
 export const middleware = t.middleware;
 
-export const protectedProcedure = t.procedure.use(isAuthenticated).use(loggingMiddleware);
+// Base protected procedure (authenticated only)
+export const protectedProcedure = t.procedure
+  .use(isAuthenticated)
+  .use(loggingMiddleware);
+
+// Company-isolated procedure (authenticated + company isolation)
+// Import here to avoid circular dependency
+import { companyIsolation } from "../middleware/company-isolation";
+export const companyProcedure = protectedProcedure.use(companyIsolation);

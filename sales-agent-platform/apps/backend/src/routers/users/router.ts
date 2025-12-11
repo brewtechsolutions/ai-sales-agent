@@ -1,39 +1,91 @@
-import { publicProcedure, protectedProcedure, router } from "../../trpc/trpc";
+/**
+ * Users router (Company Admin only)
+ * Updated for multi-tenant architecture
+ */
+
+import { z } from "zod";
+import { router } from "../../trpc/trpc";
+import { companyProcedure } from "../../trpc/trpc";
+import { requireCompanyAdmin } from "../../middleware/role-based-access";
 import { userService } from "./services";
 import { createUserSchema, updateUserSchema } from "./schemas";
 
-export const userRouter = router({
-  create: publicProcedure
-    .input(createUserSchema)
-    .mutation(async ({ input }) => {
-      return userService.create(input);
-    }),
+const adminProcedure = companyProcedure.use(requireCompanyAdmin);
 
-  getAll: protectedProcedure.query(async () => {
-    return userService.getAll();
+export const userRouter = router({
+  /**
+   * List all users in company
+   */
+  list: adminProcedure.query(async ({ ctx }) => {
+    if (!ctx.companyId) {
+      throw new Error("Company ID required");
+    }
+    return userService.getAll(ctx.companyId);
   }),
 
-  getById: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "string") return val;
-      throw new Error(`Invalid input: ${typeof val}`);
-    })
-    .query(async ({ input }) => {
-      return userService.getById(input);
+  /**
+   * Get user by ID
+   */
+  getById: adminProcedure
+    .input(z.string().uuid())
+    .query(async ({ ctx, input }) => {
+      if (!ctx.companyId) {
+        throw new Error("Company ID required");
+      }
+      return userService.getById(input, ctx.companyId);
     }),
 
-  update: protectedProcedure
+  /**
+   * Create user (agent or admin)
+   */
+  create: adminProcedure
+    .input(createUserSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.companyId) {
+        throw new Error("Company ID required");
+      }
+      return userService.create(input, ctx.companyId);
+    }),
+
+  /**
+   * Update user
+   */
+  update: adminProcedure
     .input(updateUserSchema)
-    .mutation(async ({ input }) => {
-      return userService.update(input);
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.companyId) {
+        throw new Error("Company ID required");
+      }
+      return userService.update(input, ctx.companyId);
     }),
 
-  delete: protectedProcedure
-    .input((val: unknown) => {
-      if (typeof val === "string") return val;
-      throw new Error(`Invalid input: ${typeof val}`);
-    })
-    .mutation(async ({ input }) => {
-      return userService.delete(input);
+  /**
+   * Delete user
+   */
+  delete: adminProcedure
+    .input(z.string().uuid())
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.companyId) {
+        throw new Error("Company ID required");
+      }
+
+      // Don't allow deleting yourself
+      if (input === ctx.user?.id) {
+        throw new Error("Cannot delete yourself");
+      }
+
+      return userService.delete(input, ctx.companyId);
+    }),
+
+  /**
+   * Get user performance metrics
+   */
+  getPerformance: adminProcedure
+    .input(z.string().uuid())
+    .query(async ({ ctx, input }) => {
+      if (!ctx.companyId) {
+        throw new Error("Company ID required");
+      }
+      return userService.getPerformance(input, ctx.companyId);
     }),
 });

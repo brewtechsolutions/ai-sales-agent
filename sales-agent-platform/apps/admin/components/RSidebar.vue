@@ -27,7 +27,7 @@
           :to="item.to"
           class="flex items-center px-4 py-2 text-sm font-medium rounded-ios transition-all duration-300"
           :class="[
-            $route.path === item.to
+            route.path === item.to
               ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
               : 'text-text-secondary dark:text-dark-text-secondary hover:bg-surface dark:hover:bg-dark-surface hover:text-text-primary dark:hover:text-dark-text-primary'
           ]"
@@ -64,7 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { useUser } from '~/composables/useUser'
+import { computed } from 'vue'
+import { useAuthStore } from '~/stores/useAuthStore'
 
 const props = defineProps<{
   isOpen: boolean
@@ -74,15 +75,51 @@ defineEmits<{
   (e: 'update:isOpen', value: boolean): void
 }>()
 
-const { user, logout } = useUser()
+const authStore = useAuthStore()
+const user = computed(() => authStore.user)
 
-const navigationItems = [
-  { name: 'Dashboard', to: '/', icon: 'heroicons:home' },
-  { name: 'Products', to: '/products', icon: 'heroicons:shopping-bag' },
-  { name: 'Users', to: '/users', icon: 'heroicons:users' },
-]
+const route = useRoute()
+const authStore = useAuthStore()
+
+// Determine navigation based on user role
+const navigationItems = computed(() => {
+  const user = authStore.user
+  if (!user) return []
+
+  // Super Admin navigation
+  if (user.role === 'super_admin') {
+    return [
+      { name: 'Dashboard', to: '/admin/dashboard', icon: 'heroicons:home' },
+      { name: 'Companies', to: '/admin/companies', icon: 'heroicons:building-office-2' },
+      { name: 'Templates', to: '/admin/templates', icon: 'heroicons:document-text' },
+      { name: 'Analytics', to: '/admin/analytics', icon: 'heroicons:chart-bar' },
+    ]
+  }
+
+  // Company Admin navigation
+  if (user.role === 'company_admin') {
+    return [
+      { name: 'Dashboard', to: '/company/dashboard', icon: 'heroicons:home' },
+      { name: 'Conversations', to: '/company/conversations', icon: 'heroicons:chat-bubble-left-right' },
+      { name: 'Users', to: '/company/users', icon: 'heroicons:users' },
+      { name: 'Products', to: '/company/products', icon: 'heroicons:shopping-bag' },
+      { name: 'AI Model', to: '/company/ai-model', icon: 'heroicons:sparkles' },
+      { name: 'Templates', to: '/company/templates', icon: 'heroicons:document-text' },
+      { name: 'Integrations', to: '/company/integrations', icon: 'heroicons:link' },
+      { name: 'Analytics', to: '/company/analytics', icon: 'heroicons:chart-bar' },
+    ]
+  }
+
+  // Company User (Agent) navigation
+  return [
+    { name: 'Dashboard', to: '/agent/dashboard', icon: 'heroicons:home' },
+    { name: 'Conversations', to: '/agent/conversations', icon: 'heroicons:chat-bubble-left-right' },
+    { name: 'Products', to: '/agent/products', icon: 'heroicons:shopping-bag' },
+  ]
+})
 
 const handleLogout = async () => {
-  await logout()
+  authStore.logout()
+  await navigateTo('/auth/login')
 }
 </script> 
