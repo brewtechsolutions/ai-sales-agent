@@ -7,9 +7,9 @@
   />
 
   <aside
-    class="fixed inset-y-0 left-0 z-50 w-48 md:w-64 bg-card dark:bg-dark-card border-r border-border dark:border-dark-border transform transition-transform duration-300 ease-in-out shadow-ios-lg"
     :class="[
-      { '-translate-x-full': !isOpen },
+      'fixed inset-y-0 left-0 z-50 w-48 md:w-64 bg-card dark:bg-dark-card border-r border-border dark:border-dark-border transform transition-transform duration-300 ease-in-out shadow-ios-lg',
+      !isOpen ? '-translate-x-full' : '',
       'lg:translate-x-0' // Always show on large screens
     ]"
   >
@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, toValue } from 'vue'
 import { useAuthStore } from '~/stores/useAuthStore'
 
 const props = defineProps<{
@@ -76,18 +76,18 @@ defineEmits<{
 }>()
 
 const authStore = useAuthStore()
-const user = computed(() => authStore.user)
-
 const route = useRoute()
-const authStore = useAuthStore()
+
+// Unwrapped user for template use
+const user = computed(() => toValue(authStore.user))
 
 // Determine navigation based on user role
 const navigationItems = computed(() => {
-  const user = authStore.user
-  if (!user) return []
+  const currentUser = user.value
+  if (!currentUser) return []
 
   // Super Admin navigation
-  if (user.role === 'super_admin') {
+  if (currentUser.role === 'super_admin') {
     return [
       { name: 'Dashboard', to: '/admin/dashboard', icon: 'heroicons:home' },
       { name: 'Companies', to: '/admin/companies', icon: 'heroicons:building-office-2' },
@@ -97,7 +97,7 @@ const navigationItems = computed(() => {
   }
 
   // Company Admin navigation
-  if (user.role === 'company_admin') {
+  if (currentUser.role === 'company_admin') {
     return [
       { name: 'Dashboard', to: '/company/dashboard', icon: 'heroicons:home' },
       { name: 'Conversations', to: '/company/conversations', icon: 'heroicons:chat-bubble-left-right' },
