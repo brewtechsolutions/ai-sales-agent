@@ -177,6 +177,72 @@ Options:
 - A/B testing response variations
 - Update knowledge base automatically
 
+#### D.1. Reinforcement Learning from Human Feedback (RLHF) - Human-Like Conversation (CRITICAL)
+**Purpose**: Train AI to respond naturally like a human sales agent, avoiding robotic or AI-like responses.
+
+**Core Principle**: The AI learns from real human agent behavior - what agents actually say, how they say it, and what gets positive results. This creates natural, conversational responses that feel human, not robotic.
+
+**RLHF Data Collection**:
+
+1. **Agent Response Patterns**:
+   - Track what agents actually send (vs what AI suggested)
+   - When agents use AI suggestions vs write their own
+   - How agents modify AI suggestions before sending
+   - Agent's natural language patterns and phrasing
+
+2. **Human Feedback Signals**:
+   - **Explicit Ratings**: Agent rates AI suggestions (1-5 stars)
+   - **Usage Patterns**: Did agent use the suggestion? (strong positive signal)
+   - **Modification Patterns**: How much did agent edit? (indicates what's wrong)
+   - **Manual Override**: When agent writes completely new response (negative signal for AI)
+   - **Customer Response Quality**: Did customer respond positively after agent's message?
+
+3. **Conversation Success Indicators**:
+   - Conversations that led to sales (positive reinforcement)
+   - Customer engagement metrics (response time, message count)
+   - Customer satisfaction signals (positive language, continued conversation)
+   - Conversion rates by response style
+
+**RLHF Learning Process**:
+
+1. **Pattern Extraction**:
+   - Analyze successful conversations where agents used their own responses
+   - Identify natural language patterns, tone, and style
+   - Extract what makes responses feel "human" vs "robotic"
+   - Learn company-specific communication style from top-performing agents
+
+2. **Preference Learning**:
+   - Learn which AI suggestions agents prefer (high ratings + usage)
+   - Identify patterns in suggestions that get rejected or heavily modified
+   - Understand what makes a response feel natural vs AI-generated
+   - Learn company's preferred communication style
+
+3. **Fine-Tuning Loop**:
+   - Weekly batch: Analyze all agent feedback from past week
+   - Update AI model prompts to prefer human-like patterns
+   - Adjust response style based on what agents actually use
+   - Reduce robotic phrases and patterns that agents consistently reject
+
+4. **Natural Language Optimization**:
+   - Avoid AI-typical phrases: "I understand", "Let me help you", "I'd be happy to"
+   - Prefer natural responses: "Sure!", "Got it", "No problem", "Absolutely"
+   - Learn casual vs formal based on agent behavior
+   - Match agent's natural conversation flow and pacing
+
+**RLHF Configuration Options**:
+- **Human-Likeness Score**: Target score (0-100) for how human-like responses should be
+- **Learning Rate**: How quickly to adapt to new feedback patterns
+- **Style Matching**: Match top-performing agent's style vs company average
+- **Robotic Phrase Detection**: Auto-flag and reduce AI-typical phrases
+- **Natural Conversation Flow**: Learn from agent's conversation pacing and structure
+
+**RLHF Metrics**:
+- **Human-Likeness Score**: How often agents use AI suggestions without major edits
+- **Natural Language Score**: Analysis of response naturalness (ML-based)
+- **Agent Satisfaction**: Average rating of AI suggestions
+- **Customer Engagement**: Response rates and engagement after AI-suggested messages
+- **Style Consistency**: How well AI matches agent's natural communication style
+
 #### E. Per-Company AI Model Training & Configuration (CRITICAL)
 **Each company has its own trained AI model with unique prompts and behavior.**
 
@@ -596,6 +662,14 @@ ai_model_configs (
   auto_response_triggers JSONB, -- conditions for auto-response
   test_results JSONB, -- stored test scenarios and results
   performance_metrics JSONB, -- usage_rate, avg_rating, effectiveness_score
+  -- RLHF Configuration
+  rlhf_enabled BOOLEAN DEFAULT true, -- enable RLHF learning
+  rlhf_human_likeness_target DECIMAL(3,2) DEFAULT 0.85, -- target human-likeness score (0-1)
+  rlhf_learning_rate DECIMAL(3,2) DEFAULT 0.1, -- how quickly to adapt to feedback
+  rlhf_style_matching VARCHAR(50) DEFAULT 'top_agent', -- top_agent, company_average, custom
+  rlhf_robotic_phrase_detection BOOLEAN DEFAULT true, -- auto-detect and reduce AI-typical phrases
+  rlhf_natural_flow_enabled BOOLEAN DEFAULT true, -- learn conversation pacing from agents
+  rlhf_metrics JSONB, -- human_likeness_score, natural_language_score, style_consistency
   created_by UUID REFERENCES users(id), -- which admin created this version
   created_at TIMESTAMP,
   deployed_at TIMESTAMP, -- when this version was activated
@@ -774,7 +848,46 @@ ai_suggestions (
   was_used BOOLEAN,
   agent_rating INT, -- 1-5 stars
   modified_version TEXT, -- if agent edited before sending
+  -- RLHF Data Collection
+  agent_actual_response TEXT, -- what agent actually sent (if different from suggestion)
+  edit_distance INT, -- how much agent modified (0 = used as-is, higher = more edits)
+  was_manual_override BOOLEAN DEFAULT false, -- agent wrote completely new response
+  customer_response_quality VARCHAR(20), -- positive, neutral, negative (after agent's message)
+  human_likeness_score DECIMAL(3,2), -- ML-based score of how human-like the response is
+  robotic_phrases_detected JSONB, -- ["I understand", "Let me help"] - AI-typical phrases found
+  natural_language_score DECIMAL(3,2), -- how natural the language feels
+  used_for_rlhf_training BOOLEAN DEFAULT false, -- whether this was used in RLHF training
   created_at TIMESTAMP
+)
+
+-- RLHF Training Data (for batch learning)
+rlhf_training_data (
+  id UUID PRIMARY KEY,
+  company_id UUID REFERENCES companies(id),
+  model_config_id UUID REFERENCES ai_model_configs(id),
+  -- Human Agent Response (preferred)
+  agent_response TEXT, -- what human agent actually sent
+  agent_id UUID REFERENCES users(id), -- which agent
+  conversation_context TEXT, -- conversation history before this response
+  customer_message TEXT, -- what customer said that triggered this response
+  -- AI Suggestion (rejected or modified)
+  ai_suggestion_id UUID REFERENCES ai_suggestions(id),
+  ai_suggested_message TEXT, -- what AI suggested
+  -- Feedback Signals
+  feedback_type VARCHAR(50), -- used_as_is, modified, rejected, manual_override
+  edit_details JSONB, -- what was changed and why
+  agent_rating INT, -- 1-5 stars
+  customer_engagement_score DECIMAL(3,2), -- how customer responded (positive/negative)
+  -- Learning Signals
+  human_likeness_score DECIMAL(3,2), -- ML score
+  natural_language_score DECIMAL(3,2),
+  style_match_score DECIMAL(3,2), -- how well it matches agent's style
+  -- Metadata
+  conversation_outcome VARCHAR(50), -- won, lost, ongoing
+  sale_amount DECIMAL(10,2),
+  created_at TIMESTAMP,
+  used_in_training BOOLEAN DEFAULT false,
+  training_batch_id UUID -- which training batch this was used in
 )
 
 -- Success Case Templates (AI Priority System)
@@ -1030,8 +1143,8 @@ const aiModel = await db.ai_model_configs.findFirst({
 
 // Build localized context
 const aiContext = {
-  // Use company's custom system prompt (trained model)
-  system: aiModel.system_prompt || `You are an AI sales assistant for ${company.name} in the ${company.category} industry.`,
+  // Use company's custom system prompt (trained model) with RLHF emphasis on human-like responses
+  system: buildSystemPromptWithRLHF(aiModel, company) || `You are a sales assistant for ${company.name} in the ${company.category} industry. Respond naturally like a human, not like an AI.`,
   
   // Localization
   country: company.country, // Malaysia, Singapore, etc.
@@ -1080,10 +1193,10 @@ const response = await fetch("https://api.anthropic.com/v1/messages", {
     model: "claude-sonnet-4-20250514",
     max_tokens: aiModel.max_tokens,
     temperature: aiModel.temperature,
-    messages: [
+      messages: [
       { 
         role: "system",
-        content: aiModel.system_prompt
+        content: buildSystemPromptWithRLHF(aiModel, company) // Use RLHF-enhanced prompt
       },
       { 
         role: "user", 
@@ -1092,6 +1205,41 @@ const response = await fetch("https://api.anthropic.com/v1/messages", {
     ]
   })
 })
+
+// Build system prompt with RLHF emphasis on human-like responses
+function buildSystemPromptWithRLHF(aiModel, company) {
+  let basePrompt = aiModel.system_prompt || `You are a sales assistant for ${company.name}.`
+  
+  // Add RLHF instructions if enabled
+  if (aiModel.rlhf_enabled) {
+    const rlhfInstructions = `
+CRITICAL: Respond naturally like a HUMAN sales agent, NOT like an AI or robot.
+
+AVOID AI-typical phrases:
+- "I understand" → Use "Got it", "Sure", "No problem"
+- "Let me help you" → Just help directly, don't announce it
+- "I'd be happy to" → Use "Sure!", "Absolutely", "Of course"
+- "Is there anything else I can help you with?" → Use "Anything else?" or "Need anything else?"
+- Overly formal or robotic language
+
+PREFER natural human responses:
+- Use casual, conversational language
+- Match the customer's tone (formal if they're formal, casual if they're casual)
+- Be concise and direct
+- Use natural contractions ("I'm", "you're", "that's")
+- Sound like a real person, not a chatbot
+
+LEARN FROM HUMAN AGENTS:
+- Study how real sales agents in this company communicate
+- Match their natural conversation style and pacing
+- Use phrases and patterns that agents actually use
+- Avoid patterns that agents consistently reject or heavily modify
+`
+    basePrompt = `${basePrompt}\n\n${rlhfInstructions}`
+  }
+  
+  return basePrompt
+}
 
 function buildLocalizedPrompt(context, company, aiModel) {
   // Detect customer's language preference
@@ -1118,6 +1266,18 @@ CULTURAL CONTEXT (Malaysia):
 `
   }
   
+  // Get RLHF-learned patterns if enabled
+  let rlhfPatterns = ''
+  if (aiModel.rlhf_enabled) {
+    const humanAgentPatterns = await getRLHFHumanPatterns(company.id, aiModel.id)
+    if (humanAgentPatterns.length > 0) {
+      rlhfPatterns = `
+HUMAN AGENT PATTERNS (learn from these - use similar style):
+${humanAgentPatterns.slice(0, 5).map(p => `- ${p.example_response}`).join('\n')}
+`
+    }
+  }
+  
   return `
 ${languageInstructions}
 
@@ -1127,6 +1287,8 @@ COMPANY: ${company.name}
 INDUSTRY: ${company.industry_category}
 BRAND VOICE: ${context.brandVoice}
 RESPONSE STYLE: ${aiModel.response_style}
+
+${rlhfPatterns}
 
 AVAILABLE PRODUCTS:
 ${context.products.map(p => `- ${p.name}: ${p.description} (${context.currency} ${p.price})`).join('\n')}
@@ -1144,13 +1306,16 @@ ${context.currentConversation.history.map(m =>
 
 CUSTOMER BEHAVIOR SCORE: ${context.currentConversation.behaviorScore}/100
 
-Generate a helpful, natural response that:
+Generate a helpful, NATURAL HUMAN-LIKE response that:
 1. Addresses the customer's last message directly
 2. Uses appropriate language and cultural context
 3. Suggests relevant products if appropriate
 4. Uses the brand voice and response style specified
 5. Applies successful patterns learned from past conversations
 6. Moves the conversation toward a sale if customer seems ready (green score)
+7. **Sounds like a real human sales agent, NOT like an AI chatbot**
+8. **Avoids robotic phrases and overly formal language**
+9. **Matches the natural conversation style of human agents in this company**
 
 Response:`
 }
@@ -1936,7 +2101,7 @@ function getCategoryPrompt(category, country = 'default') {
 - [ ] Activity timeline
 - [ ] Mark as completed form with sale details
 
-### Phase 8: AI Learning Loop (Week 9-10)
+### Phase 8: AI Learning Loop & RLHF (Week 9-10)
 - [ ] Store successful conversation patterns
 - [ ] Weekly batch analysis job
 - [ ] Pattern extraction with Claude
@@ -1944,6 +2109,21 @@ function getCategoryPrompt(category, country = 'default') {
 - [ ] Effectiveness scoring
 - [ ] Agent feedback collection
 - [ ] A/B testing framework setup
+- [ ] **RLHF Data Collection System**
+  - [ ] Track agent responses vs AI suggestions
+  - [ ] Calculate edit distance and modification patterns
+  - [ ] Detect manual overrides (agent writes own response)
+  - [ ] Measure customer engagement after agent messages
+  - [ ] Calculate human-likeness scores (ML-based)
+  - [ ] Detect robotic phrases in AI suggestions
+- [ ] **RLHF Batch Learning Process**
+  - [ ] Weekly RLHF training batch job
+  - [ ] Extract human agent response patterns
+  - [ ] Learn preferred vs rejected AI suggestions
+  - [ ] Update system prompts with human-like instructions
+  - [ ] Fine-tune response style based on agent behavior
+  - [ ] Reduce robotic phrase usage
+  - [ ] Update RLHF metrics in model config
 
 ### Phase 9: Analytics & Reporting (Week 10-11)
 - [ ] Company admin dashboard
@@ -2865,7 +3045,7 @@ async function generateAIResponse(conversationId: string) {
       messages: [
         {
           role: 'system',
-          content: aiModel.system_prompt // Use company's custom trained prompt
+          content: buildSystemPromptWithRLHF(aiModel, company) // Use RLHF-enhanced prompt for human-like responses
         },
         {
           role: 'user',
@@ -3042,7 +3222,7 @@ function detectCustomerLanguage(messages: any[]): string {
   return 'en' // Default to English
 }
 
-// Agent uses AI suggestion
+// Agent uses AI suggestion (with RLHF data collection)
 agent.ai.useAndSend = t.procedure
   .use(agentMiddleware)
   .input(z.object({
@@ -3073,6 +3253,13 @@ agent.ai.useAndSend = t.procedure
       }
     })
     
+    // Collect RLHF data (what agent actually sent vs what AI suggested)
+    await collectRLHFData(
+      input.suggestionId,
+      messageToSend,
+      ctx.user.id
+    )
+    
     // Send message
     const message = await db.messages.create({
       data: {
@@ -3091,6 +3278,62 @@ agent.ai.useAndSend = t.procedure
       suggestion.conversation,
       messageToSend
     )
+    
+    return message
+  })
+
+// Agent sends manual message (not using AI suggestion - also RLHF data)
+agent.conversations.sendMessage = t.procedure
+  .use(agentMiddleware)
+  .input(z.object({
+    conversationId: z.string().uuid(),
+    message: z.string(),
+    wasAISuggestionAvailable: z.boolean().optional() // if AI suggestion was available but agent wrote own
+  }))
+  .mutation(async ({ ctx, input }) => {
+    const conversation = await db.conversations.findUnique({
+      where: { id: input.conversationId }
+    })
+    
+    // Verify assignment
+    if (conversation.assigned_to !== ctx.user.id) {
+      throw new TRPCError({ code: 'FORBIDDEN' })
+    }
+    
+    // If AI suggestion was available but agent wrote own, this is a manual override (negative RLHF signal)
+    if (input.wasAISuggestionAvailable) {
+      const latestSuggestion = await db.ai_suggestions.findFirst({
+        where: {
+          conversation_id: input.conversationId,
+          was_used: false
+        },
+        orderBy: { created_at: 'desc' }
+      })
+      
+      if (latestSuggestion) {
+        await collectRLHFData(
+          latestSuggestion.id,
+          input.message,
+          ctx.user.id
+        )
+      }
+    }
+    
+    // Store message
+    const message = await db.messages.create({
+      data: {
+        conversation_id: input.conversationId,
+        content: input.message,
+        sender_type: 'agent',
+        sender_id: ctx.user.id,
+        suggested_by_ai: false,
+        agent_used_suggestion: false,
+        timestamp: new Date()
+      }
+    })
+    
+    // Send via platform
+    await sendMessageToPlatform(conversation, input.message)
     
     return message
   })
@@ -3249,6 +3492,361 @@ function calculateEffectivenessScore(conversation: any): number {
   if (conversation.products_sold?.length > 1) score += 0.1
   
   return Math.min(1.0, score)
+}
+```
+
+### 6. RLHF Implementation - Human-Like Conversation Learning
+
+```typescript
+// RLHF Data Collection: Track agent's actual response vs AI suggestion
+async function collectRLHFData(
+  suggestionId: string,
+  agentActualResponse: string,
+  agentId: string
+) {
+  const suggestion = await db.ai_suggestions.findUnique({
+    where: { id: suggestionId },
+    include: { conversation: true }
+  })
+  
+  // Calculate edit distance (how much agent modified)
+  const editDistance = calculateEditDistance(
+    suggestion.suggested_message,
+    agentActualResponse
+  )
+  
+  // Detect if agent wrote completely new response (manual override)
+  const wasManualOverride = editDistance > suggestion.suggested_message.length * 0.7
+  
+  // Detect robotic phrases in AI suggestion
+  const roboticPhrases = detectRoboticPhrases(suggestion.suggested_message)
+  
+  // Calculate human-likeness score (ML-based or heuristic)
+  const humanLikenessScore = calculateHumanLikenessScore(agentActualResponse)
+  const naturalLanguageScore = calculateNaturalLanguageScore(agentActualResponse)
+  
+  // Update suggestion with RLHF data
+  await db.ai_suggestions.update({
+    where: { id: suggestionId },
+    data: {
+      agent_actual_response: agentActualResponse,
+      edit_distance: editDistance,
+      was_manual_override: wasManualOverride,
+      robotic_phrases_detected: roboticPhrases,
+      human_likeness_score: humanLikenessScore,
+      natural_language_score: naturalLanguageScore
+    }
+  })
+  
+  // Store in RLHF training data
+  await db.rlhf_training_data.create({
+    data: {
+      company_id: suggestion.conversation.company_id,
+      model_config_id: suggestion.metadata?.model_config_id,
+      agent_response: agentActualResponse,
+      agent_id: agentId,
+      conversation_context: await getConversationContext(suggestion.conversation_id),
+      customer_message: await getLastCustomerMessage(suggestion.conversation_id),
+      ai_suggestion_id: suggestionId,
+      ai_suggested_message: suggestion.suggested_message,
+      feedback_type: wasManualOverride ? 'manual_override' : 
+                     editDistance === 0 ? 'used_as_is' : 
+                     editDistance < 50 ? 'modified' : 'rejected',
+      edit_details: {
+        edit_distance: editDistance,
+        changes: analyzeChanges(suggestion.suggested_message, agentActualResponse)
+      },
+      human_likeness_score: humanLikenessScore,
+      natural_language_score: naturalLanguageScore
+    }
+  })
+  
+  // Track customer response quality after agent's message
+  setTimeout(async () => {
+    const customerResponse = await getNextCustomerMessage(suggestion.conversation_id)
+    if (customerResponse) {
+      const engagementScore = analyzeCustomerEngagement(customerResponse)
+      await db.rlhf_training_data.update({
+        where: { id: rlhfData.id },
+        data: {
+          customer_response_quality: engagementScore > 0.7 ? 'positive' : 
+                                     engagementScore > 0.4 ? 'neutral' : 'negative',
+          customer_engagement_score: engagementScore
+        }
+      })
+    }
+  }, 300000) // Check after 5 minutes
+}
+
+// RLHF Batch Learning: Weekly process to learn from human feedback
+async function runRLHFTrainingBatch(companyId: string) {
+  const aiModel = await db.ai_model_configs.findFirst({
+    where: {
+      company_id: companyId,
+      is_active: true,
+      rlhf_enabled: true
+    }
+  })
+  
+  if (!aiModel) return
+  
+  // Get all RLHF training data from past week (not yet used)
+  const trainingData = await db.rlhf_training_data.findMany({
+    where: {
+      company_id: companyId,
+      model_config_id: aiModel.id,
+      used_in_training: false,
+      created_at: {
+        gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // last 7 days
+      }
+    },
+    include: {
+      agent: true
+    },
+    orderBy: {
+      customer_engagement_score: 'desc' // prioritize successful responses
+    }
+  })
+  
+  // Analyze patterns: What makes responses human-like?
+  const humanPatterns = await analyzeHumanResponsePatterns(trainingData)
+  
+  // Analyze rejections: What do agents consistently reject?
+  const rejectedPatterns = await analyzeRejectedPatterns(trainingData)
+  
+  // Extract natural language patterns from top-performing agents
+  const topAgentPatterns = await extractTopAgentPatterns(trainingData, companyId)
+  
+  // Update AI model system prompt with RLHF learnings
+  const updatedSystemPrompt = await updateSystemPromptWithRLHF(
+    aiModel.system_prompt,
+    humanPatterns,
+    rejectedPatterns,
+    topAgentPatterns
+  )
+  
+  // Update model config
+  await db.ai_model_configs.update({
+    where: { id: aiModel.id },
+    data: {
+      system_prompt: updatedSystemPrompt,
+      rlhf_metrics: {
+        human_likeness_score: calculateAverageHumanLikeness(trainingData),
+        natural_language_score: calculateAverageNaturalLanguage(trainingData),
+        style_consistency: calculateStyleConsistency(trainingData),
+        last_rlhf_training: new Date(),
+        training_data_count: trainingData.length
+      }
+    }
+  })
+  
+  // Mark training data as used
+  await db.rlhf_training_data.updateMany({
+    where: {
+      id: { in: trainingData.map(t => t.id) }
+    },
+    data: {
+      used_in_training: true,
+      training_batch_id: generateBatchId()
+    }
+  })
+}
+
+// Analyze human response patterns
+async function analyzeHumanResponsePatterns(trainingData: any[]) {
+  // Get responses that agents used with minimal edits (high human-likeness)
+  const preferredResponses = trainingData.filter(t => 
+    t.feedback_type === 'used_as_is' || 
+    (t.feedback_type === 'modified' && t.edit_distance < 20)
+  )
+  
+  // Extract common patterns
+  const patterns = {
+    commonPhrases: extractCommonPhrases(preferredResponses),
+    sentenceStructure: analyzeSentenceStructure(preferredResponses),
+    tonePatterns: analyzeTonePatterns(preferredResponses),
+    lengthPatterns: analyzeLengthPatterns(preferredResponses),
+    punctuationPatterns: analyzePunctuationPatterns(preferredResponses)
+  }
+  
+  return patterns
+}
+
+// Analyze rejected patterns (what agents don't like)
+async function analyzeRejectedPatterns(trainingData: any[]) {
+  const rejected = trainingData.filter(t => 
+    t.feedback_type === 'rejected' || t.feedback_type === 'manual_override'
+  )
+  
+  // Find common phrases in rejected AI suggestions
+  const rejectedPhrases = extractCommonPhrases(
+    rejected.map(t => ({ agent_response: t.ai_suggested_message }))
+  )
+  
+  // Find robotic phrases that agents consistently remove
+  const roboticPhrases = rejected
+    .flatMap(t => t.robotic_phrases_detected || [])
+    .reduce((acc, phrase) => {
+      acc[phrase] = (acc[phrase] || 0) + 1
+      return acc
+    }, {})
+  
+  return {
+    rejectedPhrases,
+    roboticPhrases,
+    rejectionReasons: analyzeRejectionReasons(rejected)
+  }
+}
+
+// Extract patterns from top-performing agents
+async function extractTopAgentPatterns(trainingData: any[], companyId: string) {
+  // Get top agents by conversion rate
+  const topAgents = await db.users.findMany({
+    where: {
+      company_id: companyId,
+      role: 'company_user'
+    },
+    include: {
+      conversations: {
+        where: {
+          is_success: true
+        }
+      }
+    }
+  })
+  
+  const topAgentIds = topAgents
+    .map(a => ({
+      id: a.id,
+      conversionRate: a.conversations.length / (a.conversations.length + 10) // simplified
+    }))
+    .sort((a, b) => b.conversionRate - a.conversionRate)
+    .slice(0, 5)
+    .map(a => a.id)
+  
+  // Get their response patterns
+  const topAgentResponses = trainingData.filter(t => 
+    topAgentIds.includes(t.agent_id)
+  )
+  
+  return {
+    preferredPhrases: extractCommonPhrases(topAgentResponses),
+    responseStyle: analyzeResponseStyle(topAgentResponses),
+    conversationFlow: analyzeConversationFlow(topAgentResponses)
+  }
+}
+
+// Update system prompt with RLHF learnings
+async function updateSystemPromptWithRLHF(
+  currentPrompt: string,
+  humanPatterns: any,
+  rejectedPatterns: any,
+  topAgentPatterns: any
+) {
+  // Remove old RLHF section if exists
+  let updatedPrompt = currentPrompt.replace(
+    /CRITICAL: Respond naturally like a HUMAN.*?(?=\n\n|\n[A-Z]|$)/s,
+    ''
+  )
+  
+  // Add new RLHF instructions based on learnings
+  const rlhfSection = `
+CRITICAL: Respond naturally like a HUMAN sales agent, NOT like an AI or robot.
+
+LEARNED FROM HUMAN AGENTS - USE THESE PATTERNS:
+${topAgentPatterns.preferredPhrases.slice(0, 10).map(p => `- "${p}"`).join('\n')}
+
+AVOID THESE ROBOTIC PHRASES (agents consistently reject them):
+${Object.keys(rejectedPatterns.roboticPhrases).slice(0, 10).map(p => `- "${p}"`).join('\n')}
+
+NATURAL RESPONSE STYLE:
+- Use casual, conversational language like: ${humanPatterns.commonPhrases.slice(0, 5).join(', ')}
+- Match sentence structure: ${humanPatterns.sentenceStructure}
+- Keep responses concise (${humanPatterns.lengthPatterns.avgLength} words average)
+- Use natural punctuation: ${humanPatterns.punctuationPatterns}
+
+REMEMBER: Sound like a real person having a conversation, not a chatbot.
+`
+  
+  return updatedPrompt + '\n\n' + rlhfSection
+}
+
+// Helper functions
+function detectRoboticPhrases(text: string): string[] {
+  const roboticPhrases = [
+    'I understand', 'Let me help you', "I'd be happy to",
+    'Is there anything else I can help you with?',
+    'Thank you for contacting us', 'How may I assist you',
+    'I hope this helps', 'Please let me know if you have any questions'
+  ]
+  
+  return roboticPhrases.filter(phrase => 
+    text.toLowerCase().includes(phrase.toLowerCase())
+  )
+}
+
+function calculateHumanLikenessScore(text: string): number {
+  // Heuristic-based score (can be replaced with ML model)
+  let score = 0.5
+  
+  // Positive signals
+  if (text.match(/\b(sure|got it|no problem|absolutely|of course)\b/i)) score += 0.2
+  if (text.match(/[!?]/)) score += 0.1 // Natural punctuation
+  if (text.length < 100) score += 0.1 // Concise
+  if (text.match(/\b(I'm|you're|that's|it's)\b/i)) score += 0.1 // Contractions
+  
+  // Negative signals
+  if (detectRoboticPhrases(text).length > 0) score -= 0.3
+  if (text.match(/\b(understand|assist|inquire|utilize)\b/i)) score -= 0.1 // Formal words
+  if (text.length > 200) score -= 0.1 // Too long
+  
+  return Math.max(0, Math.min(1, score))
+}
+
+function calculateNaturalLanguageScore(text: string): number {
+  // Similar to human-likeness but focuses on language naturalness
+  let score = 0.5
+  
+  // Check for natural flow
+  const sentences = text.split(/[.!?]/).filter(s => s.trim().length > 0)
+  if (sentences.length > 0) {
+    const avgLength = sentences.reduce((sum, s) => sum + s.split(' ').length, 0) / sentences.length
+    if (avgLength >= 8 && avgLength <= 20) score += 0.2 // Natural sentence length
+  }
+  
+  // Check for variety in sentence structure
+  const hasVariety = new Set(sentences.map(s => s.split(' ').length)).size > 2
+  if (hasVariety) score += 0.2
+  
+  // Check for conversational markers
+  if (text.match(/\b(yeah|yep|nope|hmm|oh|well)\b/i)) score += 0.1
+  
+  return Math.max(0, Math.min(1, score))
+}
+
+function calculateEditDistance(str1: string, str2: string): number {
+  // Levenshtein distance
+  const matrix = []
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i]
+  }
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j
+  }
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2[i - 1] === str1[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1]
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        )
+      }
+    }
+  }
+  return matrix[str2.length][str1.length]
 }
 ```
 
@@ -3448,6 +4046,20 @@ async function logCredentialChange(
 16. **AI model testing**: Test scenarios work, results stored correctly
 17. **Template testing**: Test interface works, template matching validated
 18. **Performance monitoring**: Model metrics and template metrics tracked accurately
+19. **RLHF Data Collection**: 
+   - Agent responses tracked correctly (vs AI suggestions)
+   - Edit distance calculated accurately
+   - Manual overrides detected
+   - Customer engagement measured after agent messages
+   - Human-likeness scores calculated
+   - Robotic phrases detected
+20. **RLHF Batch Learning**:
+   - Weekly batch job runs correctly
+   - Human patterns extracted from agent responses
+   - Rejected patterns identified
+   - System prompts updated with RLHF learnings
+   - AI responses become more human-like over time
+   - Robotic phrase usage decreases
 
 ---
 
@@ -3488,5 +4100,8 @@ async function logCredentialChange(
 9. **Company Admin trains AI model** → Configure system prompt → Set training data weights → Configure language and cultural context → Test model with scenarios → Activate version → All future AI responses use new model (if no template match) → Monitor performance metrics
 
 10. **Localization in action (en, zh, bm)** → Customer message arrives → Detect customer language (English/Bahasa Malaysia/Chinese) → AI checks templates in detected language first → If template match: Use localized template response → If no template: AI responds in appropriate language → Use cultural context (greetings, customs) → Format currency and dates according to company settings
+
+11. **RLHF - Human-Like Conversation Learning** → 
+   - Agent sends message (using AI suggestion or writing own) → System collects RLHF data (what agent sent vs what AI suggested, edit distance, manual overrides) → Calculate human-likeness scores → Detect robotic phrases → Track customer engagement after agent's message → Store in RLHF training data → Weekly batch: Analyze all agent feedback → Extract human response patterns → Identify rejected AI patterns → Learn from top-performing agents → Update system prompt with human-like instructions → Reduce robotic phrase usage → AI responses become more natural and human-like over time → Agents use more AI suggestions as quality improves
 
 This prompt should give you everything needed to build the complete platform! 🚀
