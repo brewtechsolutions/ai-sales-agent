@@ -5,9 +5,8 @@ Welcome to the admin app documentation!
 ## Quick Links
 
 - [Getting Started](./getting-started/README.md) - Start here if you're new
-- [Architecture](./architecture/README.md) - Understand how it works
 - [Components](./components/README.md) - Component library
-- [Features](./features/README.md) - Feature documentation
+- [Features](./features/authentication.md) - Feature documentation (Authentication)
 - [Design System](./design-system/README.md) - Design tokens and styling
 - [AI Agent Rules](./agent-rule/README.md) - Coding rules for AI assistants
 

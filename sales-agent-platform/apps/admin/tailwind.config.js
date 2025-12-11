@@ -1,11 +1,26 @@
+/**
+ * Tailwind CSS v4 Configuration for Nuxt
+ * 
+ * Tailwind v4 supports both CSS-first (@theme) and JS config approaches.
+ * We use a hybrid approach:
+ * - Static tokens (shadows, fonts) in CSS @theme directive
+ * - Dynamic theme values (colors with CSS variables) in JS config
+ * 
+ * This allows runtime theming (light/dark mode) via CSS variables
+ * while keeping static design tokens in CSS.
+ * 
+ * Files:
+ * - Theme colors: tailwind.config.js (this file)
+ * - CSS variables: assets/css/main.css (@layer base)
+ * - Static tokens: assets/css/main.css (@theme directive)
+ */
+
 import animate from "tailwindcss-animate";
 import { setupInspiraUI } from "@inspira-ui/plugins";
 
 /** @type {import('tailwindcss').Config} */
-module.exports = {
-  darkMode: "selector",
-  safelist: ["dark"],
-  prefix: "",
+export default {
+  // Content paths for Tailwind to scan
   content: [
     "./components/**/*.{js,vue,ts}",
     "./layouts/**/*.vue",
@@ -14,6 +29,11 @@ module.exports = {
     "./app.vue",
     "./error.vue",
   ],
+  
+  // Dark mode configuration
+  darkMode: "selector",
+  
+  // Theme configuration - maps CSS variables to Tailwind utilities
   theme: {
     extend: {
       colors: {
@@ -73,7 +93,7 @@ module.exports = {
         "text-tertiary": "hsl(var(--text-tertiary))",
         border: "hsl(var(--border))",
         
-        // 🌙 Dark mode colors (will be used via dark: prefix)
+        // 🌙 Dark mode colors (used via dark: prefix)
         "dark-background": "hsl(var(--dark-background))",
         "dark-surface": "hsl(var(--dark-surface))",
         "dark-card": "hsl(var(--dark-card))",
@@ -103,7 +123,7 @@ module.exports = {
         },
       },
       
-      // iOS-style border radius
+      // iOS-style border radius (also defined in @theme, but kept here for compatibility)
       borderRadius: {
         'ios': '12px',
         'ios-lg': '16px',
@@ -114,19 +134,20 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       
-      // iOS-style shadows
+      // iOS-style shadows (also defined in @theme, but kept here for compatibility)
       boxShadow: {
         'ios': '0 2px 8px rgba(0, 0, 0, 0.08)',
         'ios-lg': '0 4px 16px rgba(0, 0, 0, 0.12)',
         'ios-xl': '0 8px 24px rgba(0, 0, 0, 0.16)',
       },
       
-      // System fonts
+      // System fonts (also defined in @theme, but kept here for compatibility)
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Segoe UI', 'sans-serif'],
       },
     },
   },
-
+  
+  // Plugins that require JS configuration
   plugins: [animate, setupInspiraUI],
 }

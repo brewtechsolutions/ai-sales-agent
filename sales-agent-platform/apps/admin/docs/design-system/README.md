@@ -8,6 +8,7 @@ The admin app uses a semantic color system with full dark mode support and iOS-i
 
 ## Quick Links
 
+- [Theme Configuration](./theme-configuration.md) - **Start here** - How Tailwind v4 is configured
 - [Colors](./colors.md) - Color palette and usage
 - [Typography](./typography.md) - Font styles and usage
 - [Spacing](./spacing.md) - Spacing scale
@@ -24,9 +25,29 @@ The admin app uses a semantic color system with full dark mode support and iOS-i
 
 ## Theme Configuration
 
-The theme is configured in:
-- `tailwind.config.js` - Tailwind theme extension
-- `assets/css/main.css` - CSS variables for colors
+The theme uses a **hybrid approach** optimized for Tailwind CSS v4:
+
+### Files Structure
+
+1. **`assets/css/main.css`** - Contains:
+   - CSS variables in `@layer base` for runtime theming (light/dark mode)
+   - `@theme` directive for static design tokens (shadows, fonts, border radius)
+
+2. **`tailwind.config.js`** - Contains:
+   - Theme extension mapping CSS variables to Tailwind utilities
+   - Plugin configuration (tailwindcss-animate, @inspira-ui/plugins)
+   - Content paths for file scanning
+
+### Why This Approach?
+
+- **CSS Variables** (`@layer base`) enable runtime theme switching (light/dark mode)
+- **Tailwind Config** maps CSS variables to utilities like `bg-primary`, `text-success`, etc.
+- **@theme Directive** defines static tokens that don't need runtime changes
+
+This hybrid approach gives us the best of both worlds:
+- ✅ Runtime theming via CSS variables
+- ✅ Type-safe Tailwind utilities
+- ✅ Tailwind v4 compatibility
 
 ## Quick Reference
 
