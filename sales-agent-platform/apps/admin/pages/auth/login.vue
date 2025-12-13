@@ -8,10 +8,10 @@
           <UIcon name="i-heroicons-lock-closed" class="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
         </div>
         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-text-primary dark:text-dark-text-primary tracking-tight mb-2 sm:mb-3">
-          Welcome back
+          {{ appName }}
         </h1>
         <p class="text-base sm:text-lg text-text-secondary dark:text-dark-text-secondary">
-          Sign in to continue to your account
+          Sign in to access your dashboard
         </p>
       </div>
 
@@ -78,36 +78,57 @@
           </div>
         </UForm>
 
-        <!-- Google Login Button -->
-        <div class="pt-2 sm:pt-4">
-          <button
-            type="button"
-            @click="handleGoogleLogin"
-            :disabled="isLoading"
-            class="w-full h-12 sm:h-14 px-6 rounded-ios-lg border-2 border-border dark:border-dark-border bg-surface dark:bg-dark-surface text-text-primary dark:text-dark-text-primary font-semibold text-base sm:text-lg transition-all duration-300 hover:bg-card dark:hover:bg-dark-card hover:border-primary/50 dark:hover:border-primary/50 hover:shadow-ios focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-          >
-            <UIcon name="i-simple-icons-google" class="w-5 h-5 sm:w-6 sm:h-6" />
-            <span>Continue with Google</span>
-          </button>
-        </div>
-
         <!-- Divider -->
         <div class="flex items-center my-6 sm:my-8 gap-4">
           <div class="flex-1 h-px bg-border/30 dark:bg-dark-border/30"></div>
           <span class="text-sm sm:text-base text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
-            New to our platform?
+            Or continue with
           </span>
           <div class="flex-1 h-px bg-border/30 dark:bg-dark-border/30"></div>
         </div>
 
-        <!-- Register Link -->
-        <div class="text-center">
-          <NuxtLink
-            to="/auth/register"
-            class="inline-flex items-center justify-center w-full h-12 sm:h-14 px-6 rounded-ios-lg border-2 border-border dark:border-dark-border bg-surface dark:bg-dark-surface text-text-primary dark:text-dark-text-primary font-semibold text-base sm:text-lg transition-all duration-300 hover:bg-card dark:hover:bg-dark-card hover:border-primary/50 dark:hover:border-primary/50 hover:shadow-ios focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card"
+        <!-- Google Login Icon -->
+        <div class="flex justify-center pt-2 sm:pt-4">
+          <button
+            type="button"
+            @click="handleGoogleLogin"
+            :disabled="isLoading || isGoogleLoading"
+            aria-label="Sign in with Google"
+            class="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-full bg-white dark:bg-white shadow-ios-lg flex items-center justify-center transition-all duration-300 hover:shadow-ios-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-ios-lg disabled:active:scale-100 relative"
           >
-            Create an account
-          </NuxtLink>
+            <!-- Loading Spinner -->
+            <div
+              v-if="isGoogleLoading"
+              class="absolute inset-0 flex items-center justify-center"
+            >
+              <svg
+                class="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 animate-spin text-primary"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                />
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            </div>
+            <!-- Google Icon -->
+            <UIcon 
+              v-else
+              name="i-simple-icons-google" 
+              class="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 transition-opacity duration-300" 
+            />
+          </button>
         </div>
       </div>
 
@@ -138,6 +159,11 @@ const { loginWithEmail, loginWithGoogle, loading, error, isConfigured } = useAut
 const { checkAuth, user } = useAuth()
 const isLoading = computed(() => loading.value)
 const toast = useToast()
+const config = useRuntimeConfig()
+const appName = computed(() => config.public.appName || 'Sales Agent Platform')
+
+// Google Login Loading State
+const isGoogleLoading = ref(false)
 
 // Form Schema
 const schema = z.object({
@@ -212,6 +238,11 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
 // Google Login Handler
 async function handleGoogleLogin() {
+  // Prevent multiple clicks
+  if (isGoogleLoading.value || isLoading.value) {
+    return
+  }
+
   try {
     if (!isConfigured.value) {
       toast.add({
@@ -223,10 +254,17 @@ async function handleGoogleLogin() {
       return
     }
 
+    // Set loading state immediately
+    isGoogleLoading.value = true
+
     await loginWithGoogle()
     // User will be redirected to Auth0, then to callback page
+    // Note: The redirect happens so fast that loading state might not be visible,
+    // but it prevents multiple clicks
   } catch (err: any) {
     console.error('Google login failed:', err)
+    isGoogleLoading.value = false // Reset on error
+    
     toast.add({
       title: 'Google login failed',
       description: err?.message || 'Something went wrong. Please try again.',

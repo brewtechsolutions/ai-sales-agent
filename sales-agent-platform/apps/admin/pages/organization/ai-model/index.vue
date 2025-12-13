@@ -411,7 +411,7 @@ definePageMeta({
   layout: "default",
   middleware: "auth",
   requiresAuth: true,
-  requiredRole: "company_admin",
+  requiredRole: "organization_admin",
 });
 
 const trpc = useTrpc();

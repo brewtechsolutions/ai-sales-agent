@@ -10,6 +10,7 @@ import {
   loginSchema,
   setupPasswordSchema,
   selectPortalSchema,
+  createMyCompanySchema,
 } from "./schemas";
 import { 
   getMe, 
@@ -23,6 +24,7 @@ import {
   auth0GoogleLogin,
   setupPassword,
   selectPortal,
+  createMyCompany,
 } from "./services";
 import { isAuthenticated } from "../../middleware/auth";
 
@@ -102,6 +104,20 @@ export const authRouter = router({
     .input(selectPortalSchema)
     .mutation(async ({ ctx, input }) => {
       return selectPortal(ctx.user!.id, input.role);
+    }),
+
+  /**
+   * Create company for authenticated user (onboarding)
+   * Only users without a company can create one
+   */
+  createMyCompany: publicProcedure
+    .use(isAuthenticated)
+    .input(createMyCompanySchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.user?.id) {
+        throw new Error("User not authenticated");
+      }
+      return createMyCompany(ctx.user.id, input);
     }),
 
   // ============================================

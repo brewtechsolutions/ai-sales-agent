@@ -444,7 +444,7 @@ definePageMeta({
   layout: "default",
   middleware: "auth",
   requiresAuth: true,
-  requiredRole: "company_user",
+  requiredRole: "organization_user",
 });
 
 const route = useRoute();

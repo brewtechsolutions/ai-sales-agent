@@ -10,7 +10,11 @@ import {
   RegisterInput,
   LoginInput,
   SetupPasswordInput,
+  CreateMyCompanyInput,
 } from "./schemas";
+import { slugify } from "../../utils/strings";
+import { generateWebhookSecret } from "../../utils/encryption";
+import { CompanyStatus } from "../../constants/company";
 import { auth } from "../../config/firebase";
 import { 
   auth0Management, 
@@ -1141,6 +1145,97 @@ export const firebaseRegister = async (input: FirebaseRegisterInput) => {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Firebase Register failed",
+    });
+  }
+};
+
+/**
+ * Create company for authenticated user (onboarding)
+ * Only company_admin role can create companies (and can create multiple)
+ */
+export const createMyCompany = async (userId: string, input: CreateMyCompanyInput) => {
+  try {
+    // Check if user exists and has company_admin role
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, companyId: true, role: true, roles: true },
+    });
+
+    if (!user) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "User not found",
+      });
+    }
+
+    // Only company_admin can create companies
+    const userRoles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+    if (!userRoles.includes("company_admin") && user.role !== "company_admin") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Only company administrators can create companies",
+      });
+    }
+
+    // Auto-generate slug
+    const slug = slugify(input.name);
+
+    // Check if slug already exists
+    const existing = await prisma.company.findUnique({
+      where: { slug },
+    });
+
+    if (existing) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: `Company with name "${input.name}" already exists. Please choose a different name.`,
+      });
+    }
+
+    // Generate webhook secret
+    const webhookSecret = generateWebhookSecret();
+
+    // Create company
+    const company = await prisma.company.create({
+      data: {
+        name: input.name,
+        slug,
+        logoUrl: input.logoUrl,
+        industryCategory: input.industryCategory,
+        country: input.country,
+        preferredLanguage: input.preferredLanguage,
+        currency: input.currency,
+        timezone: input.timezone,
+        dateFormat: input.dateFormat,
+        status: CompanyStatus.TRIAL,
+        webhookSecret,
+        settings: {},
+      },
+    });
+
+    // Create default company settings
+    await prisma.companySettings.create({
+      data: {
+        companyId: company.id,
+        autoAssignEnabled: false,
+        assignmentStrategy: "manual",
+      },
+    });
+
+    // Note: We don't assign the user to the company automatically
+    // Company admins can manage multiple companies without being assigned to them
+    // They can switch between companies or assign themselves if needed
+
+    return {
+      company,
+      message: "Company created successfully. You can manage multiple companies as a company administrator.",
+    };
+  } catch (error: any) {
+    console.error("Create My Company Error:", error);
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: error.message || "Failed to create company",
     });
   }
 };

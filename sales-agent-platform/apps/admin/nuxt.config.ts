@@ -28,6 +28,7 @@ export default defineNuxtConfig({
       auth0ClientId: process.env.AUTH0_CLIENT_ID || "",
       auth0Audience: process.env.AUTH0_AUDIENCE || "",
       auth0RedirectUri: process.env.AUTH0_REDIRECT_URI || "", // Optional: override callback URL
+      appName: process.env.APP_NAME || "Sales Agent Platform", // App name for branding
     },
   },
   devServer: {
