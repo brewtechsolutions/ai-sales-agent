@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -60,8 +61,15 @@ model User {
   company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
   email       String   @unique
-  passwordHash String? @map("password_hash")
-  role        String   // super_admin, company_admin, company_user
+  passwordHash String? @map("password_hash") // Legacy field, not used with Auth0
+  // Auth0 fields
+  auth0Id     String?  @unique @map("auth0_id") // Auth0 user ID (sub claim)
+  provider    String?  // auth0-google, auth0-email, legacy: google, phone, email
+  // Legacy Firebase fields (for migration period)
+  firebaseUid String?  @map("firebase_uid")
+  phoneNumber String?  @map("phone_number")
+  roles       Json     @default("[]") // Array of roles: ["super_admin", "company_admin", "company_user"]
+  role        String   // Primary/current role (for backward compatibility, defaults to first role)
   status      String   @default("active") // active, inactive
   avatarUrl   String?  @map("avatar_url")
   metadata    Json?    // expertise, departments, etc

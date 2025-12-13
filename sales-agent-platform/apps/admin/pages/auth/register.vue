@@ -31,7 +31,7 @@
               autocomplete="name"
               autofocus
             />
-          </UFormField>
+        </UFormField>
 
           <!-- Email Field -->
           <UFormField label="Email address" name="email" class="space-y-2">
@@ -45,7 +45,7 @@
               class="w-full"
               autocomplete="email"
             />
-          </UFormField>
+        </UFormField>
 
           <!-- Password Field -->
           <UFormField label="Password" name="password" class="space-y-2">
@@ -77,7 +77,7 @@
                 {{ getPasswordStrengthText() }}
               </p>
             </div>
-          </UFormField>
+        </UFormField>
 
           <!-- Confirm Password Field -->
           <UFormField label="Confirm password" name="confirmPassword" class="space-y-2">
@@ -113,14 +113,14 @@
                 {{ state.password === state.confirmPassword ? 'Passwords match' : 'Passwords do not match' }}
               </span>
             </div>
-          </UFormField>
+        </UFormField>
 
           <!-- Terms & Conditions -->
           <div class="pt-2">
             <div class="flex items-start gap-3">
-              <UCheckbox
-                v-model="state.acceptTerms"
-                name="acceptTerms"
+        <UCheckbox
+          v-model="state.acceptTerms"
+          name="acceptTerms"
                 :disabled="isLoading"
                 class="mt-0.5"
               />
@@ -150,8 +150,8 @@
 
           <!-- Submit Button -->
           <div class="pt-2 sm:pt-4">
-            <InteractiveHoverButton
-              type="submit"
+        <InteractiveHoverButton
+          type="submit"
               :text="isLoading ? 'Creating account...' : 'Create account'"
               :class="cn(
                 'w-full h-12 sm:h-14 text-base sm:text-lg font-semibold',
@@ -206,10 +206,22 @@ definePageMeta({
 })
 
 // Composables
-const { login } = useAuth()
-const client = useTrpc()
+const { registerWithEmail, isConfigured } = useAuth0()
+const { checkAuth, user } = useAuth()
 const isLoading = ref(false)
 const toast = useToast()
+
+// Route to dashboard based on role
+function routeToDashboard(role: string) {
+  if (role === 'super_admin') {
+    return navigateTo('/admin/dashboard')
+  } else if (role === 'company_admin') {
+    return navigateTo('/company/dashboard')
+  } else if (role === 'company_user') {
+    return navigateTo('/agent/dashboard')
+  }
+  return navigateTo('/')
+}
 
 // Form Schema
 const schema = z.object({
@@ -279,20 +291,39 @@ function getPasswordStrengthText(): string {
   return 'Strong password'
 }
 
-// Submit Handler
+// Submit Handler - Register with Auth0
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   try {
+    if (!isConfigured.value) {
+      toast.add({
+        title: 'Configuration Error',
+        description: 'Auth0 is not configured. Please contact support.',
+        color: 'error',
+        timeout: 5000
+      })
+      return
+    }
+
     isLoading.value = true
     
-    // Call tRPC register mutation
-    await client.auth.register.mutate({
-      name: event.data.name,
-      email: event.data.email,
-      password: event.data.password
-    })
+    // Register with Auth0 (this also logs in automatically)
+    const loggedInUser = await registerWithEmail(
+      event.data.name,
+      event.data.email,
+      event.data.password
+    )
 
-    // Login with the new credentials
-    await login(event.data.email, event.data.password)
+    // Check if user has multiple roles - show portal selection
+    await checkAuth()
+    const currentUser = user.value
+    
+    if (currentUser?.roles && currentUser.roles.length > 1) {
+      // User has multiple roles - redirect to portal selection
+      await navigateTo('/auth/select-portal')
+    } else {
+      // Single role - route directly
+      await routeToDashboard(currentUser?.role || loggedInUser.role)
+    }
 
     toast.add({ 
       title: 'Account created!', 
@@ -300,22 +331,18 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       color: 'success',
       timeout: 3000
     })
-    
-    // Small delay for better UX
-    await new Promise(resolve => setTimeout(resolve, 500))
-    await navigateTo('/')
-  } catch (error: any) {
-    console.error('Registration failed:', error)
+  } catch (err: any) {
+    console.error('Registration failed:', err)
     
     // More user-friendly error messages
     let errorMessage = 'Something went wrong. Please try again in a moment.'
     
-    if (error?.message?.includes('email') || error?.message?.includes('Email')) {
+    if (err?.message?.includes('email') || err?.message?.includes('Email') || err?.message?.includes('already')) {
       errorMessage = 'This email is already registered. Please sign in or use a different email.'
-    } else if (error?.message?.includes('password')) {
+    } else if (err?.message?.includes('password')) {
       errorMessage = 'Password requirements not met. Please check and try again.'
-    } else if (error?.message) {
-      errorMessage = error.message
+    } else if (err?.message) {
+      errorMessage = err.message
     }
     
     toast.add({ 

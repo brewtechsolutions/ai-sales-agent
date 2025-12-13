@@ -1,8 +1,26 @@
 import { TRPCError } from "@trpc/server";
 import jwt from "jsonwebtoken";
 import { prisma } from "../../prisma";
-import { GoogleLoginInput, RefreshTokenInput, PhoneLoginInput, FirebaseLoginInput, FirebaseRegisterInput } from "./schemas";
+import { 
+  GoogleLoginInput, 
+  RefreshTokenInput, 
+  PhoneLoginInput, 
+  FirebaseLoginInput, 
+  FirebaseRegisterInput,
+  RegisterInput,
+  LoginInput,
+  SetupPasswordInput,
+} from "./schemas";
 import { auth } from "../../config/firebase";
+import { 
+  auth0Management, 
+  isAuth0Configured,
+  isManagementApiAvailable,
+  getConnectionFromSub,
+  AUTH0_CONNECTIONS,
+} from "../../config/auth0";
+
+const AUTH0_CLIENT_SECRET = process.env.AUTH0_CLIENT_SECRET;
 import { randomUUID } from "crypto";
 import { getInactivityThreshold, addDays } from "../../utils/dates";
 
@@ -33,6 +51,9 @@ export const getMe = async (userId: string) => {
         id: true,
         name: true,
         email: true,
+        role: true,
+        roles: true, // Array of roles
+        companyId: true,
       },
     });
 
@@ -43,7 +64,13 @@ export const getMe = async (userId: string) => {
       });
     }
 
-    return user;
+    // Ensure roles is an array (handle legacy single role)
+    const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+
+    return {
+      ...user,
+      roles, // Always return as array
+    };
   } catch (error) {
     if (error instanceof TRPCError) throw error;
     throw new TRPCError({
@@ -53,9 +80,573 @@ export const getMe = async (userId: string) => {
   }
 };
 
+/**
+ * Verify Auth0 access token and get user info
+ */
+async function verifyAuth0Token(accessToken: string) {
+  if (!isAuth0Configured()) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Auth0 not configured",
+    });
+  }
+
+  try {
+    const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN!;
+    
+    // Get user info from Auth0's userinfo endpoint
+    const userInfoResponse = await fetch(`https://${AUTH0_DOMAIN}/userinfo`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!userInfoResponse.ok) {
+      throw new Error("Failed to verify Auth0 token");
+    }
+
+    const userInfo = await userInfoResponse.json();
+    return userInfo;
+  } catch (error: any) {
+    console.error("Auth0 token verification error:", error);
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: error.message || "Invalid Auth0 token",
+    });
+  }
+}
+
+/**
+ * Create or update user in database from Auth0 user info
+ * Handles duplicate email scenarios by linking accounts
+ */
+async function syncUserFromAuth0(auth0User: any) {
+  const auth0Id = auth0User.sub;
+  const email = auth0User.email;
+  const name = auth0User.name || auth0User.nickname || "User";
+  const connection = getConnectionFromSub(auth0Id);
+  const provider = connection === AUTH0_CONNECTIONS.GOOGLE ? "auth0-google" : "auth0-email";
+
+  if (!email) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Email is required from Auth0",
+    });
+  }
+
+  // Check if user exists by Auth0 ID
+  let user = await prisma.user.findUnique({
+    where: { auth0Id },
+  });
+
+  if (user) {
+    // User exists with this Auth0 ID - update and return
+    // Ensure roles array exists (for legacy users)
+    const currentRoles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : ["company_user"];
+    
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        name,
+        email,
+        roles: currentRoles, // Ensure roles array is set
+        role: user.role || currentRoles[0], // Ensure primary role is set
+        lastLoginAt: new Date(),
+      },
+    });
+    return user;
+  }
+
+  // Check if user exists by email (duplicate email scenario)
+  const existingUserByEmail = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (existingUserByEmail) {
+    // Duplicate email found - link the Auth0 account to existing user
+    // This handles: user registered with email/password, then tries Google login (or vice versa)
+    if (existingUserByEmail.auth0Id && existingUserByEmail.auth0Id !== auth0Id) {
+      // User already has a different Auth0 account - need to link accounts in Auth0
+      // For now, we'll update the auth0Id (this assumes Auth0 accounts are already linked)
+      // In production, you should use Auth0's account linking API
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Email already registered with different Auth0 account. Please link accounts.",
+      });
+    }
+
+    // Link Auth0 account to existing user
+    // Ensure roles array exists (for legacy users)
+    const currentRoles = Array.isArray(existingUserByEmail.roles) 
+      ? existingUserByEmail.roles 
+      : existingUserByEmail.role 
+        ? [existingUserByEmail.role] 
+        : ["company_user"];
+    
+    user = await prisma.user.update({
+      where: { id: existingUserByEmail.id },
+      data: {
+        auth0Id,
+        provider,
+        roles: currentRoles, // Ensure roles array is set
+        role: existingUserByEmail.role || currentRoles[0], // Ensure primary role is set
+        lastLoginAt: new Date(),
+      },
+    });
+    return user;
+  }
+
+  // New user - auto-register in database
+  // Default to company_user role (normal user), can be updated later in admin dashboard
+  const defaultRoles = ["company_user"];
+  user = await prisma.user.create({
+    data: {
+      email,
+      name,
+      auth0Id,
+      provider,
+      roles: defaultRoles, // Array of roles - defaults to company_user
+      role: defaultRoles[0], // Primary role (first in array) - defaults to company_user
+      status: "active", // Default status
+      lastLoginAt: new Date(),
+    },
+  });
+  
+  console.log(`[Auth0] ✅ New user auto-registered: ${email} with default role: ${defaultRoles[0]}`);
+  
+  return user;
+}
+
+/**
+ * Generate JWT tokens for user
+ */
+function generateTokens(user: { id: string; email: string }) {
+  const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
+    expiresIn: ACCESS_TOKEN_EXPIRES_IN,
+  });
+
+  const refreshToken = randomUUID();
+
+  return { token, refreshToken };
+}
+
+/**
+ * Save refresh token to database
+ */
+async function saveRefreshToken(userId: string, token: string, accessToken: string) {
+  const existingToken = await prisma.userRefreshToken.findFirst({
+    where: { userId },
+  });
+
+  if (existingToken) {
+    await prisma.userRefreshToken.update({
+      where: { id: existingToken.id },
+      data: {
+        token,
+        accessToken,
+        expiresAt: getRefreshTokenExpiry(),
+        revoked: false,
+      },
+    });
+  } else {
+    await prisma.userRefreshToken.create({
+      data: {
+        token,
+        accessToken,
+        userId,
+        expiresAt: getRefreshTokenExpiry(),
+      },
+    });
+  }
+}
+
+// ============================================
+// Auth0 Authentication Functions
+// ============================================
+
+/**
+ * Email/Password Registration via Auth0
+ * 
+ * NOTE: For free tier, this endpoint is optional.
+ * Frontend should handle Auth0 signup and send the access token here.
+ * This endpoint just verifies the token and syncs user to database.
+ * 
+ * If Management API is available, we can create users from backend.
+ * Otherwise, frontend must handle signup.
+ */
+export const auth0Register = async (input: RegisterInput) => {
+  try {
+    if (!isAuth0Configured()) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Auth0 not configured",
+      });
+    }
+
+    // Check if user already exists in database
+    const existingUser = await prisma.user.findUnique({
+      where: { email: input.email },
+    });
+
+    if (existingUser) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "Email already registered",
+      });
+    }
+
+    // If Management API is available, create user in Auth0
+    // Otherwise, frontend should have already created the user
+    if (auth0Management) {
+      try {
+        const auth0User = await auth0Management.users.create({
+          email: input.email,
+          password: input.password,
+          name: input.name,
+          connection: AUTH0_CONNECTIONS.EMAIL,
+          email_verified: false,
+        }) as any;
+
+        // Sync user to database
+        const user = await syncUserFromAuth0({
+          sub: auth0User.user_id || auth0User.sub,
+          email: auth0User.email,
+          name: auth0User.name,
+        });
+
+        // Generate tokens
+        const { token, refreshToken } = generateTokens(user);
+        await saveRefreshToken(user.id, refreshToken, token);
+
+        // Get roles array (handle legacy single role)
+        const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+
+        return {
+          token,
+          refreshToken,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role, // Primary role
+            roles, // Array of all roles
+          },
+        };
+      } catch (error: any) {
+        if (error.statusCode === 409) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Email already registered in Auth0",
+          });
+        }
+        throw error;
+      }
+    } else {
+      // Management API not available - frontend should handle signup
+      throw new TRPCError({
+        code: "NOT_IMPLEMENTED",
+        message: "Backend user creation requires Management API. Please handle signup in frontend using Auth0 SDK and send the access token to verifyAuth0Token endpoint.",
+      });
+    }
+  } catch (error: any) {
+    console.error("Auth0 Register Error:", error);
+    if (error instanceof TRPCError) throw error;
+
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: error.message || "Registration failed",
+    });
+  }
+};
+
+/**
+ * Email/Password Login via Auth0
+ * 
+ * NOTE: For free tier, frontend should handle Auth0 login and send access token.
+ * This endpoint can optionally use password grant if AUTH0_CLIENT_SECRET is provided.
+ * 
+ * Recommended approach (free tier):
+ * - Frontend uses Auth0 SDK to login
+ * - Frontend sends access token to backend
+ * - Backend verifies token and syncs user
+ */
+export const auth0Login = async (input: LoginInput) => {
+  try {
+    if (!isAuth0Configured()) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Auth0 not configured",
+      });
+    }
+
+    // If client secret is available, use password grant
+    // Otherwise, frontend should handle login
+    if (!AUTH0_CLIENT_SECRET) {
+      throw new TRPCError({
+        code: "NOT_IMPLEMENTED",
+        message: "Backend password grant requires AUTH0_CLIENT_SECRET. Please handle login in frontend using Auth0 SDK and send the access token to verifyAuth0Token endpoint.",
+      });
+    }
+
+    const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN!;
+    const AUTH0_CLIENT_ID = process.env.AUTH0_CLIENT_ID!;
+
+    // Use Auth0's password grant (Resource Owner Password Grant)
+    const response = await fetch(`https://${AUTH0_DOMAIN}/oauth/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        grant_type: "password",
+        username: input.email,
+        password: input.password,
+        client_id: AUTH0_CLIENT_ID,
+        client_secret: AUTH0_CLIENT_SECRET,
+        connection: AUTH0_CONNECTIONS.EMAIL,
+        scope: "openid profile email",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as any;
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: errorData.error_description || "Invalid email or password",
+      });
+    }
+
+    const authResult = (await response.json()) as { access_token: string };
+    const { access_token } = authResult;
+
+    // Get user info from Auth0 using the access token
+    const userInfoResponse = await fetch(`https://${AUTH0_DOMAIN}/userinfo`, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+
+    if (!userInfoResponse.ok) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Failed to get user info from Auth0",
+      });
+    }
+
+    const auth0User = await userInfoResponse.json();
+
+    // Sync user to database
+    const user = await syncUserFromAuth0(auth0User);
+
+    // Generate tokens
+    const { token, refreshToken } = generateTokens(user);
+    await saveRefreshToken(user.id, refreshToken, token);
+
+    // Get roles array (handle legacy single role)
+    const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+
+    return {
+      token,
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role, // Primary role
+        roles, // Array of all roles
+      },
+    };
+  } catch (error: any) {
+    console.error("Auth0 Login Error:", error);
+    if (error instanceof TRPCError) throw error;
+
+    // Handle Auth0 authentication errors
+    if (error.statusCode === 401 || error.message?.includes("Invalid") || error.message?.includes("password")) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Invalid email or password",
+      });
+    }
+
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: error.message || "Login failed",
+    });
+  }
+};
+
+/**
+ * Google OAuth Login via Auth0
+ */
+export const auth0GoogleLogin = async (input: GoogleLoginInput) => {
+  try {
+    if (!isAuth0Configured()) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Auth0 not configured",
+      });
+    }
+
+    // Verify Auth0 access token (from Google OAuth flow)
+    const auth0User = await verifyAuth0Token(input.accessToken);
+
+    // Sync user to database (handles duplicate emails)
+    const user = await syncUserFromAuth0(auth0User);
+
+    // Generate tokens
+    const { token, refreshToken } = generateTokens(user);
+    await saveRefreshToken(user.id, refreshToken, token);
+
+    // Get roles array (handle legacy single role)
+    const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+
+    return {
+      token,
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role, // Primary role
+        roles, // Array of all roles
+      },
+    };
+  } catch (error: any) {
+    console.error("Auth0 Google Login Error:", error);
+    if (error instanceof TRPCError) throw error;
+
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: error.message || "Google login failed",
+    });
+  }
+};
+
+/**
+ * Setup password for Google user (allows Google users to also login with password)
+ * 
+ * NOTE: Requires Management API (M2M application) to update Auth0 user.
+ * For free tier without M2M, this operation should be done in Auth0 Dashboard or via frontend.
+ */
+export const setupPassword = async (userId: string, input: SetupPasswordInput) => {
+  try {
+    if (!isAuth0Configured()) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Auth0 not configured",
+      });
+    }
+
+    if (!isManagementApiAvailable()) {
+      throw new TRPCError({
+        code: "NOT_IMPLEMENTED",
+        message: "Password setup requires Management API. Please configure AUTH0_M2M_CLIENT_ID and AUTH0_M2M_CLIENT_SECRET, or handle password setup in Auth0 Dashboard.",
+      });
+    }
+
+    // Get user from database
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.auth0Id) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "User not found or not using Auth0",
+      });
+    }
+
+    // Check if user is a Google user
+    if (user.provider !== "auth0-google") {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "User is not a Google user",
+      });
+    }
+
+    // Link email/password connection to existing Auth0 user
+    await auth0Management!.users.update(
+      { id: user.auth0Id },
+      {
+        password: input.password,
+        connection: AUTH0_CONNECTIONS.EMAIL,
+      }
+    );
+
+    // Update provider to indicate user can use both methods
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        provider: "auth0-google-email", // Indicates both methods available
+      },
+    });
+
+    return {
+      success: true,
+      message: "Password set up successfully. You can now login with email and password.",
+    };
+  } catch (error: any) {
+    console.error("Setup Password Error:", error);
+    if (error instanceof TRPCError) throw error;
+
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: error.message || "Failed to set up password",
+    });
+  }
+};
+
+/**
+ * Select portal/role for user with multiple roles
+ */
+export const selectPortal = async (userId: string, role: string) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        roles: true,
+      },
+    });
+
+    if (!user) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "User not found",
+      });
+    }
+
+    // Get roles array
+    const roles = Array.isArray(user.roles) ? user.roles : [];
+
+    // Check if user has the requested role
+    if (!roles.includes(role)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "User does not have access to this portal",
+      });
+    }
+
+    // Update primary role
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        role, // Set as primary role
+      },
+    });
+
+    return { success: true, role };
+  } catch (error) {
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Failed to select portal",
+    });
+  }
+};
+
 export const logout = async (userId: string) => {
   try {
-    // Revoke the user's refresh token session
+    // Revoke the user's refresh token session (single login enforcement)
     const session = await prisma.userRefreshToken.findFirst({
       where: { userId },
     });

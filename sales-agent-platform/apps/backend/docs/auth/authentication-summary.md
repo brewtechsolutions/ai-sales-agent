@@ -2,9 +2,10 @@
 
 ## Overview
 
-The backend uses a **dual-token authentication system**:
-- **Firebase** verifies Google/Phone login (one-time)
+The backend uses **Auth0** for authentication with a **dual-token system**:
+- **Auth0** handles Google OAuth and Email/Password authentication
 - **Backend JWT** manages sessions (ongoing)
+- **Legacy Firebase** support maintained for migration period
 
 ## Token System
 

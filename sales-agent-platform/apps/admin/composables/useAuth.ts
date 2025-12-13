@@ -7,7 +7,8 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  role: 'super_admin' | 'company_admin' | 'company_user';
+  role: string; // Primary/current role ('super_admin' | 'company_admin' | 'company_user')
+  roles?: string[]; // Array of all roles (for users with multiple roles)
   company_id?: string | null;
 }
 
@@ -27,17 +28,33 @@ export const useAuth = () => {
       user.value = response.user;
       token.value = response.token;
       
-      // Route based on user role after login
-      const userRole = response.user.role;
-      if (userRole === 'super_admin') {
-        router.push("/admin/dashboard");
-      } else if (userRole === 'company_admin') {
-        router.push("/company/dashboard");
-      } else if (userRole === 'company_user') {
-        router.push("/agent/dashboard");
+      // Store refresh token if provided
+      if (response.refreshToken) {
+        const refreshTokenCookie = useCookie("refreshToken", {
+          maxAge: 60 * 60 * 24 * 400, // 400 days
+          sameSite: "lax",
+          secure: true,
+        });
+        refreshTokenCookie.value = response.refreshToken;
+      }
+      
+      // Check if user has multiple roles
+      const userRoles = response.user.roles || (response.user.role ? [response.user.role] : []);
+      if (userRoles.length > 1) {
+        // Multiple roles - redirect to portal selection
+        router.push("/auth/select-portal");
       } else {
-        // Fallback to root (which will route based on role)
-        router.push("/");
+        // Single role - route directly
+        const userRole = response.user.role;
+        if (userRole === 'super_admin') {
+          router.push("/admin/dashboard");
+        } else if (userRole === 'company_admin') {
+          router.push("/company/dashboard");
+        } else if (userRole === 'company_user') {
+          router.push("/agent/dashboard");
+        } else {
+      router.push("/");
+        }
       }
     } catch (e) {
       error.value =
@@ -51,9 +68,19 @@ export const useAuth = () => {
   const logout = async () => {
     try {
       loading.value = true;
-      // Since logout endpoint might not exist, we'll just clear local state
+      
+      // Call backend logout to revoke refresh token (single login enforcement)
+      try {
+        await client.auth.logout.mutate();
+      } catch (e) {
+        // Continue with local cleanup even if backend call fails
+        console.warn("Backend logout failed, continuing with local cleanup:", e);
+      }
+      
+      // Clear local state
       user.value = null;
-      // Clear token cookie with proper options
+      
+      // Clear token cookie
       const tokenCookie = useCookie("token", {
         maxAge: 0,
         expires: new Date(0),
@@ -62,7 +89,16 @@ export const useAuth = () => {
       });
       tokenCookie.value = null;
 
-      // Also clear user cookie
+      // Clear refresh token cookie
+      const refreshTokenCookie = useCookie("refreshToken", {
+        maxAge: 0,
+        expires: new Date(0),
+        path: "/",
+        sameSite: "lax",
+      });
+      refreshTokenCookie.value = null;
+
+      // Clear user cookie
       const userCookie = useCookie("user", {
         maxAge: 0,
         expires: new Date(0),
@@ -88,10 +124,58 @@ export const useAuth = () => {
         user.value = null;
         return false;
       }
+      
+      try {
+        const response = await client.auth.me.query();
+        // Ensure roles is always an array
+        if (response) {
+          user.value = {
+            ...response,
+            roles: response.roles || (response.role ? [response.role] : []),
+          };
+        } else {
+          user.value = null;
+        }
+        return true;
+      } catch (e: any) {
+        console.error("Auth check failed:", e);
+        // If token expired, try to refresh
+        if (e?.data?.code === 'UNAUTHORIZED' || e?.message?.includes('token') || e?.message?.includes('Not authenticated')) {
+          const refreshTokenCookie = useCookie("refreshToken");
+          if (refreshTokenCookie.value) {
+            try {
+              const { refreshAccessToken } = useAuth0();
+              await refreshAccessToken();
+              // Retry getting user info
       const response = await client.auth.me.query();
-      user.value = response;
+              if (response) {
+                user.value = {
+                  ...response,
+                  roles: response.roles || (response.role ? [response.role] : []),
+                };
+              } else {
+                user.value = null;
+              }
       return true;
+            } catch (refreshError) {
+              console.error("Token refresh failed:", refreshError);
+              // Refresh failed - clear tokens and return false
+              token.value = null;
+              refreshTokenCookie.value = null;
+              user.value = null;
+              return false;
+            }
+          } else {
+            // No refresh token - clear and return false
+            token.value = null;
+            user.value = null;
+            return false;
+          }
+        }
+        throw e;
+      }
     } catch (e) {
+      console.error("Auth check error:", e);
       user.value = null;
       token.value = null;
       return false;

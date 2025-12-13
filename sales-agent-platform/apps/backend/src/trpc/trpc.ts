@@ -13,6 +13,8 @@ const loggingMiddleware = t.middleware(async (opts: any) => {
   const startTime = Date.now();
   const procedure = `${opts.type}.${opts.path}`;
   
+  // Log procedure call (removed verbose logging for production)
+  
   // Log procedure call
   logger.trpc(procedure, undefined, opts.ctx.user?.id);
 
@@ -28,7 +30,11 @@ const loggingMiddleware = t.middleware(async (opts: any) => {
     const duration = Date.now() - startTime;
     const err = error as Error;
     
-    // Log error result
+    // Log error result with more details for auth errors
+    if (procedure.includes('googleLogin')) {
+      console.error(`[tRPC] ${procedure} error:`, err.message, { input: opts.rawInput });
+    }
+    
     logger.trpcResult(procedure, false, duration, err);
     
     throw error;

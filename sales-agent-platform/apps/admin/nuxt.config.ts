@@ -24,6 +24,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: process.env.API_BASE_URL || "http://localhost:3000",
+      auth0Domain: process.env.AUTH0_DOMAIN || "",
+      auth0ClientId: process.env.AUTH0_CLIENT_ID || "",
+      auth0Audience: process.env.AUTH0_AUDIENCE || "",
+      auth0RedirectUri: process.env.AUTH0_REDIRECT_URI || "", // Optional: override callback URL
     },
   },
   devServer: {

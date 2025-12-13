@@ -420,6 +420,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useTrpc } from "~/composables/useTrpc";
+import { useAuth } from "~/composables/useAuth";
 
 definePageMeta({
   layout: "default",
@@ -462,6 +463,14 @@ const formatCurrency = (amount: number) => {
 
 const fetchDashboardData = async () => {
   try {
+    // Check if user has a company
+    const { user } = useAuth();
+    if (!user.value?.company_id) {
+      // User doesn't have a company, redirect to onboarding
+      await navigateTo('/onboarding');
+      return;
+    }
+
     // Fetch agent's assigned conversations
     const agentConversations = await trpc.agent.conversations.list.query();
     conversations.value = agentConversations;
@@ -500,8 +509,13 @@ const fetchDashboardData = async () => {
         icon: "heroicons:clock",
       },
     ];
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to fetch dashboard data:", error);
+    
+    // If error is due to missing company, redirect to onboarding
+    if (error?.message?.includes('company') || error?.data?.code === 'BAD_REQUEST') {
+      await navigateTo('/onboarding');
+    }
   }
 };
 

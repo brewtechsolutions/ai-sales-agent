@@ -5,8 +5,8 @@
         <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 text-primary animate-spin" />
       </div>
       <p class="text-text-primary dark:text-dark-text-primary">Redirecting...</p>
+      </div>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -38,6 +38,13 @@ onMounted(async () => {
   }
 
   const userRole = user.value?.role
+  const userRoles = user.value?.roles || (userRole ? [userRole] : [])
+
+  // If user has multiple roles, redirect to portal selection
+  if (userRoles.length > 1) {
+    await navigateTo('/auth/select-portal')
+    return
+  }
 
   // Route based on user role
   switch (userRole) {

@@ -164,7 +164,7 @@ export default {
       },
     },
   },
-  
+
   // Plugins that require JS configuration
   plugins: [animate, setupInspiraUI],
 }

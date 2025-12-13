@@ -31,7 +31,7 @@
               autocomplete="email"
               autofocus
             />
-          </UFormField>
+        </UFormField>
 
           <!-- Password Field -->
           <UFormField label="Password" name="password" class="space-y-2">
@@ -45,29 +45,29 @@
               class="w-full"
               autocomplete="current-password"
             />
-          </UFormField>
+        </UFormField>
 
           <!-- Remember Me & Forgot Password -->
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 pt-1">
-            <UCheckbox
-              v-model="state.rememberMe"
-              label="Remember me"
-              name="rememberMe"
+          <UCheckbox
+            v-model="state.rememberMe"
+            label="Remember me"
+            name="rememberMe"
               :disabled="isLoading"
               class="text-sm sm:text-base"
-            />
+          />
             <NuxtLink
               to="/auth/forgot-password"
               class="text-sm sm:text-base font-medium text-primary hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card rounded-md px-1 -mx-1"
             >
-              Forgot password?
-            </NuxtLink>
-          </div>
+            Forgot password?
+          </NuxtLink>
+        </div>
 
           <!-- Submit Button -->
           <div class="pt-2 sm:pt-4">
-            <InteractiveHoverButton
-              type="submit"
+        <InteractiveHoverButton
+          type="submit"
               :text="isLoading ? 'Signing in...' : 'Sign in'"
               :class="cn(
                 'w-full h-12 sm:h-14 text-base sm:text-lg font-semibold',
@@ -77,6 +77,19 @@
             />
           </div>
         </UForm>
+
+        <!-- Google Login Button -->
+        <div class="pt-2 sm:pt-4">
+          <button
+            type="button"
+            @click="handleGoogleLogin"
+            :disabled="isLoading"
+            class="w-full h-12 sm:h-14 px-6 rounded-ios-lg border-2 border-border dark:border-dark-border bg-surface dark:bg-dark-surface text-text-primary dark:text-dark-text-primary font-semibold text-base sm:text-lg transition-all duration-300 hover:bg-card dark:hover:bg-dark-card hover:border-primary/50 dark:hover:border-primary/50 hover:shadow-ios focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          >
+            <UIcon name="i-simple-icons-google" class="w-5 h-5 sm:w-6 sm:h-6" />
+            <span>Continue with Google</span>
+          </button>
+        </div>
 
         <!-- Divider -->
         <div class="flex items-center my-6 sm:my-8 gap-4">
@@ -121,8 +134,9 @@ definePageMeta({
 })
 
 // Composables
-const { login } = useAuth()
-const isLoading = ref(false)
+const { loginWithEmail, loginWithGoogle, loading, error, isConfigured } = useAuth0()
+const { checkAuth, user } = useAuth()
+const isLoading = computed(() => loading.value)
 const toast = useToast()
 
 // Form Schema
@@ -147,12 +161,32 @@ const state = reactive<Partial<Schema>>({
   rememberMe: false
 })
 
-// Submit Handler
+// Submit Handler - Email/Password Login via Auth0
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   try {
-    isLoading.value = true
+    if (!isConfigured.value) {
+      toast.add({
+        title: 'Configuration Error',
+        description: 'Auth0 is not configured. Please contact support.',
+        color: 'error',
+        timeout: 5000
+      })
+      return
+    }
+
+    const loggedInUser = await loginWithEmail(event.data.email, event.data.password)
     
-    await login(event.data.email, event.data.password)
+    // Check if user has multiple roles - show portal selection
+    await checkAuth()
+    const currentUser = user.value
+    
+    if (currentUser?.roles && currentUser.roles.length > 1) {
+      // User has multiple roles - redirect to portal selection
+      await navigateTo('/auth/select-portal')
+    } else {
+      // Single role - route directly
+      await routeToDashboard(currentUser?.role || loggedInUser.role)
+    }
     
     toast.add({ 
       title: 'Welcome back!', 
@@ -160,17 +194,12 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       color: 'success',
       timeout: 3000
     })
+  } catch (err: any) {
+    console.error('Login failed:', err)
     
-    // Small delay for better UX
-    await new Promise(resolve => setTimeout(resolve, 500))
-    await navigateTo('/')
-  } catch (error: any) {
-    console.error('Login failed:', error)
-    
-    // More user-friendly error messages
-    const errorMessage = error?.message?.includes('Invalid') 
+    const errorMessage = err?.message?.includes('Invalid') || err?.message?.includes('password')
       ? 'Invalid email or password. Please check your credentials and try again.'
-      : 'Something went wrong. Please try again in a moment.'
+      : err?.message || 'Something went wrong. Please try again in a moment.'
     
     toast.add({ 
       title: 'Sign in failed', 
@@ -178,8 +207,44 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       color: 'error',
       timeout: 5000
     })
-  } finally {
-    isLoading.value = false
   }
+}
+
+// Google Login Handler
+async function handleGoogleLogin() {
+  try {
+    if (!isConfigured.value) {
+      toast.add({
+        title: 'Configuration Error',
+        description: 'Auth0 is not configured. Please contact support.',
+        color: 'error',
+        timeout: 5000
+      })
+      return
+    }
+
+    await loginWithGoogle()
+    // User will be redirected to Auth0, then to callback page
+  } catch (err: any) {
+    console.error('Google login failed:', err)
+    toast.add({
+      title: 'Google login failed',
+      description: err?.message || 'Something went wrong. Please try again.',
+      color: 'error',
+      timeout: 5000
+    })
+  }
+}
+
+// Route to dashboard based on role
+function routeToDashboard(role: string) {
+  if (role === 'super_admin') {
+    return navigateTo('/admin/dashboard')
+  } else if (role === 'company_admin') {
+    return navigateTo('/company/dashboard')
+  } else if (role === 'company_user') {
+    return navigateTo('/agent/dashboard')
+  }
+  return navigateTo('/')
 }
 </script> 
