@@ -68,8 +68,8 @@ model User {
   // Legacy Firebase fields (for migration period)
   firebaseUid String?  @map("firebase_uid")
   phoneNumber String?  @map("phone_number")
-  roles       Json     @default("[]") // Array of roles: ["super_admin", "company_admin", "company_user"]
-  role        String   // Primary/current role (for backward compatibility, defaults to first role)
+  roles       Json     @default("[]") // Array of roles: ["super_admin", "company_admin", "company_user"] - SOURCE OF TRUTH
+  role        String   // Auto-synced from roles[0] - kept for indexing and backward compatibility (DO NOT SET DIRECTLY)
   status      String   @default("active") // active, inactive
   avatarUrl   String?  @map("avatar_url")
   metadata    Json?    // expertise, departments, etc

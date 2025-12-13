@@ -119,9 +119,22 @@ onMounted(async () => {
 
     // Check if user has multiple roles
     if (currentUser.roles && currentUser.roles.length > 1) {
-      // User has multiple roles - redirect to portal selection
-      console.log('🔄 User has multiple roles, redirecting to portal selection')
-      await navigateTo('/auth/select-portal', { replace: true })
+      // User has multiple roles - check if preferred role is set
+      const preferredRole = (currentUser as any).preferredRole
+      if (preferredRole && currentUser.roles.includes(preferredRole)) {
+        // User has preferred role set - route directly to that portal
+        console.log('⭐ User has preferred role, routing to:', preferredRole)
+        const dashboardPath = preferredRole === 'super_admin' 
+          ? '/admin/dashboard'
+          : preferredRole === 'company_admin'
+          ? '/organization/dashboard'
+          : '/agent/dashboard'
+        await navigateTo(dashboardPath, { replace: true })
+      } else {
+        // No preferred role - redirect to portal selection
+        console.log('🔄 User has multiple roles, redirecting to portal selection')
+        await navigateTo('/auth/select-portal', { replace: true })
+      }
     } else {
       // Single role - route directly
       const roleToUse = currentUser.role || 'company_user'

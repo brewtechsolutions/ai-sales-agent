@@ -98,3 +98,14 @@ export const createMyCompanySchema = z.object({
 });
 
 export type CreateMyCompanyInput = z.infer<typeof createMyCompanySchema>;
+
+// ============================================
+// Preferred/Default Role Setting
+// ============================================
+
+export const setPreferredRoleSchema = z.object({
+  role: z.enum(["super_admin", "company_admin", "company_user"]),
+  setAsDefault: z.boolean().default(true), // Whether to set as default for future logins
+});
+
+export type SetPreferredRoleInput = z.infer<typeof setPreferredRoleSchema>;

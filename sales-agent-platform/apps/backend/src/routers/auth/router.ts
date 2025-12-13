@@ -1,5 +1,6 @@
 import { publicProcedure, router } from "../../trpc/trpc";
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 import { 
   googleLoginSchema, 
   refreshTokenSchema, 
@@ -11,6 +12,7 @@ import {
   setupPasswordSchema,
   selectPortalSchema,
   createMyCompanySchema,
+  setPreferredRoleSchema,
 } from "./schemas";
 import { 
   getMe, 
@@ -25,6 +27,7 @@ import {
   setupPassword,
   selectPortal,
   createMyCompany,
+  setPreferredRole,
 } from "./services";
 import { isAuthenticated } from "../../middleware/auth";
 
@@ -101,9 +104,22 @@ export const authRouter = router({
    */
   selectPortal: publicProcedure
     .use(isAuthenticated)
-    .input(selectPortalSchema)
+    .input(selectPortalSchema.extend({ setAsDefault: z.boolean().optional() }))
     .mutation(async ({ ctx, input }) => {
-      return selectPortal(ctx.user!.id, input.role);
+      return selectPortal(ctx.user!.id, input.role, input.setAsDefault || false);
+    }),
+
+  /**
+   * Set preferred/default role for future logins
+   */
+  setPreferredRole: publicProcedure
+    .use(isAuthenticated)
+    .input(setPreferredRoleSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.user?.id) {
+        throw new Error("User not authenticated");
+      }
+      return setPreferredRole(ctx.user.id, input);
     }),
 
   /**

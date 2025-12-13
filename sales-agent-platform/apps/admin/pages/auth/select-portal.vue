@@ -18,13 +18,15 @@
       <!-- Portal Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <!-- Super Admin Portal -->
-        <button
+        <div
           v-if="availableRoles.includes('super_admin')"
-          @click="selectRole('super_admin')"
-          :disabled="isLoading"
-          class="group relative bg-card dark:bg-dark-card rounded-ios-xl shadow-ios-lg p-6 sm:p-8 transition-all duration-300 hover:shadow-ios-xl hover:scale-[1.02] border-2 border-transparent hover:border-primary/50 dark:hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card disabled:opacity-50 disabled:cursor-not-allowed"
+          class="group relative bg-card dark:bg-dark-card rounded-ios-xl shadow-ios-lg p-6 sm:p-8 transition-all duration-300 hover:shadow-ios-xl border-2 border-transparent hover:border-primary/50 dark:hover:border-primary/50"
         >
-          <div class="flex flex-col items-center text-center space-y-4">
+          <button
+            @click="selectRole('super_admin', false)"
+            :disabled="isLoading"
+            class="w-full flex flex-col items-center text-center space-y-4 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-ios-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center group-hover:bg-primary/20 dark:group-hover:bg-primary/30 transition-colors duration-300">
               <UIcon name="i-heroicons-shield-check" class="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
             </div>
@@ -36,17 +38,34 @@
                 Manage all companies and platform settings
               </p>
             </div>
+          </button>
+          <!-- Set as Default Toggle -->
+          <div class="mt-4 pt-4 border-t border-border/50 dark:border-dark-border/50 flex items-center justify-center">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                :checked="preferredRole === 'super_admin'"
+                @change="togglePreferredRole('super_admin', $event)"
+                :disabled="isLoading"
+                class="w-4 h-4 rounded border-border dark:border-dark-border text-primary focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+              />
+              <span class="text-xs sm:text-sm text-text-secondary dark:text-dark-text-secondary">
+                Set as default
+              </span>
+            </label>
           </div>
-        </button>
+        </div>
 
         <!-- Company Admin Portal -->
-        <button
+        <div
           v-if="availableRoles.includes('company_admin')"
-          @click="selectRole('company_admin')"
-          :disabled="isLoading"
-          class="group relative bg-card dark:bg-dark-card rounded-ios-xl shadow-ios-lg p-6 sm:p-8 transition-all duration-300 hover:shadow-ios-xl hover:scale-[1.02] border-2 border-transparent hover:border-primary/50 dark:hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card disabled:opacity-50 disabled:cursor-not-allowed"
+          class="group relative bg-card dark:bg-dark-card rounded-ios-xl shadow-ios-lg p-6 sm:p-8 transition-all duration-300 hover:shadow-ios-xl border-2 border-transparent hover:border-primary/50 dark:hover:border-primary/50"
         >
-          <div class="flex flex-col items-center text-center space-y-4">
+          <button
+            @click="selectRole('company_admin', false)"
+            :disabled="isLoading"
+            class="w-full flex flex-col items-center text-center space-y-4 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-ios-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center group-hover:bg-primary/20 dark:group-hover:bg-primary/30 transition-colors duration-300">
               <UIcon name="i-heroicons-building-office" class="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
             </div>
@@ -58,17 +77,34 @@
                 Manage your company, users, and settings
               </p>
             </div>
+          </button>
+          <!-- Set as Default Toggle -->
+          <div class="mt-4 pt-4 border-t border-border/50 dark:border-dark-border/50 flex items-center justify-center">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                :checked="preferredRole === 'company_admin'"
+                @change="togglePreferredRole('company_admin', $event)"
+                :disabled="isLoading"
+                class="w-4 h-4 rounded border-border dark:border-dark-border text-primary focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+              />
+              <span class="text-xs sm:text-sm text-text-secondary dark:text-dark-text-secondary">
+                Set as default
+              </span>
+            </label>
           </div>
-        </button>
+        </div>
 
         <!-- Company User Portal -->
-        <button
+        <div
           v-if="availableRoles.includes('company_user')"
-          @click="selectRole('company_user')"
-          :disabled="isLoading"
-          class="group relative bg-card dark:bg-dark-card rounded-ios-xl shadow-ios-lg p-6 sm:p-8 transition-all duration-300 hover:shadow-ios-xl hover:scale-[1.02] border-2 border-transparent hover:border-primary/50 dark:hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card disabled:opacity-50 disabled:cursor-not-allowed"
+          class="group relative bg-card dark:bg-dark-card rounded-ios-xl shadow-ios-lg p-6 sm:p-8 transition-all duration-300 hover:shadow-ios-xl border-2 border-transparent hover:border-primary/50 dark:hover:border-primary/50"
         >
-          <div class="flex flex-col items-center text-center space-y-4">
+          <button
+            @click="selectRole('company_user', false)"
+            :disabled="isLoading"
+            class="w-full flex flex-col items-center text-center space-y-4 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-dark-card disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-ios-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center group-hover:bg-primary/20 dark:group-hover:bg-primary/30 transition-colors duration-300">
               <UIcon name="i-heroicons-user" class="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
             </div>
@@ -80,8 +116,23 @@
                 Handle conversations and manage leads
               </p>
             </div>
+          </button>
+          <!-- Set as Default Toggle -->
+          <div class="mt-4 pt-4 border-t border-border/50 dark:border-dark-border/50 flex items-center justify-center">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                :checked="preferredRole === 'company_user'"
+                @change="togglePreferredRole('company_user', $event)"
+                :disabled="isLoading"
+                class="w-4 h-4 rounded border-border dark:border-dark-border text-primary focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
+              />
+              <span class="text-xs sm:text-sm text-text-secondary dark:text-dark-text-secondary">
+                Set as default
+              </span>
+            </label>
           </div>
-        </button>
+        </div>
       </div>
 
       <!-- Logout Option -->
@@ -106,7 +157,7 @@ definePageMeta({
 })
 
 // Composables
-const { user, logout } = useAuth()
+const { user, logout, checkAuth } = useAuth()
 const client = useTrpc()
 const isLoading = ref(false)
 const toast = useToast()
@@ -119,12 +170,17 @@ const availableRoles = computed(() => {
   return Array.isArray(user.value.roles) ? user.value.roles : []
 })
 
+// Get preferred role
+const preferredRole = computed(() => {
+  return (user.value as any)?.preferredRole || null
+})
+
 // Route to dashboard based on role
 function routeToDashboard(role: string) {
   if (role === 'super_admin') {
     return navigateTo('/admin/dashboard')
   } else if (role === 'company_admin') {
-    return navigateTo('/company/dashboard')
+    return navigateTo('/organization/dashboard')
   } else if (role === 'company_user') {
     return navigateTo('/agent/dashboard')
   }
@@ -132,24 +188,31 @@ function routeToDashboard(role: string) {
 }
 
 // Select role/portal
-async function selectRole(role: string) {
+async function selectRole(role: string, setAsDefault: boolean = false) {
   try {
     isLoading.value = true
 
     // Update role in backend
-    await client.auth.selectPortal.mutate({ role })
+    const result = await client.auth.selectPortal.mutate({ role, setAsDefault })
 
-    // Update local user state
-    if (user.value) {
-      user.value.role = role
+    // Update local user state with fresh data from backend
+    if (user.value && result.user) {
+      user.value.role = result.user.role
+      user.value.roles = result.user.roles
+      ;(user.value as any).preferredRole = result.user.preferredRole
     }
+
+    // Refresh auth to get latest user data
+    await checkAuth()
 
     // Route to selected portal
     await routeToDashboard(role)
 
     toast.add({
       title: 'Portal selected',
-      description: `You are now accessing the ${role.replace('_', ' ')} portal.`,
+      description: setAsDefault 
+        ? `You are now accessing the ${role.replace('_', ' ')} portal. This will be your default portal.`
+        : `You are now accessing the ${role.replace('_', ' ')} portal.`,
       color: 'success',
       timeout: 3000
     })
@@ -161,6 +224,50 @@ async function selectRole(role: string) {
       color: 'error',
       timeout: 5000
     })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Toggle preferred role (set/remove default)
+async function togglePreferredRole(role: string, event: Event) {
+  const checked = (event.target as HTMLInputElement).checked
+  
+  try {
+    isLoading.value = true
+
+    // Set or remove preferred role
+    const result = await client.auth.setPreferredRole.mutate({
+      role,
+      setAsDefault: checked,
+    })
+
+    // Update local user state
+    if (user.value && result.user) {
+      ;(user.value as any).preferredRole = result.user.preferredRole
+    }
+
+    // Refresh auth to get latest user data
+    await checkAuth()
+
+    toast.add({
+      title: checked ? 'Default portal set' : 'Default portal removed',
+      description: checked
+        ? `This portal will be your default login interface.`
+        : `Default portal preference removed.`,
+      color: 'success',
+      timeout: 3000
+    })
+  } catch (err: any) {
+    console.error('Failed to set preferred role:', err)
+    toast.add({
+      title: 'Failed to update preference',
+      description: err?.message || 'Something went wrong. Please try again.',
+      color: 'error',
+      timeout: 5000
+    })
+    // Revert checkbox
+    ;(event.target as HTMLInputElement).checked = !checked
   } finally {
     isLoading.value = false
   }

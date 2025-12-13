@@ -54,6 +54,7 @@ export const createContext = async ({
         email: true,
         name: true,
         role: true,
+        roles: true, // Include roles array for role switching
         companyId: true,
         lastLoginAt: true,
         company: {
@@ -82,6 +83,9 @@ export const createContext = async ({
       return { prisma, req, res, user: null };
     }
 
+    // Ensure roles is always an array
+    const userRoles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+
     return {
       prisma,
       req,
@@ -90,7 +94,8 @@ export const createContext = async ({
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: user.role, // Primary role (roles[0])
+        roles: userRoles, // All roles array
         companyId: user.companyId,
         company: user.company,
       },

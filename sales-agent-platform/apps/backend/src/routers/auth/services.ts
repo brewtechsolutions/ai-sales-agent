@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import jwt from "jsonwebtoken";
-import { prisma } from "../../prisma";
+import { prisma, getPrimaryRole, prepareUserData } from "../../prisma";
 import { 
   GoogleLoginInput, 
   RefreshTokenInput, 
@@ -11,6 +11,7 @@ import {
   LoginInput,
   SetupPasswordInput,
   CreateMyCompanyInput,
+  SetPreferredRoleInput,
 } from "./schemas";
 import { slugify } from "../../utils/strings";
 import { generateWebhookSecret } from "../../utils/encryption";
@@ -58,6 +59,7 @@ export const getMe = async (userId: string) => {
         role: true,
         roles: true, // Array of roles
         companyId: true,
+        metadata: true, // For preferred role
       },
     });
 
@@ -70,10 +72,17 @@ export const getMe = async (userId: string) => {
 
     // Ensure roles is an array (handle legacy single role)
     const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+    const primaryRole = getPrimaryRole(roles);
+
+    // Get preferred role from metadata
+    const metadata = user.metadata as any;
+    const preferredRole = metadata?.preferredRole || null;
 
     return {
       ...user,
       roles, // Always return as array
+      role: primaryRole, // Always roles[0]
+      preferredRole, // Preferred/default role for login
     };
   } catch (error) {
     if (error instanceof TRPCError) throw error;
@@ -150,13 +159,12 @@ async function syncUserFromAuth0(auth0User: any) {
     
     user = await prisma.user.update({
       where: { id: user.id },
-      data: {
+      data: prepareUserData({
         name,
         email,
-        roles: currentRoles, // Ensure roles array is set
-        role: user.role || currentRoles[0], // Ensure primary role is set
+        roles: currentRoles, // roles is source of truth - role auto-syncs from roles[0]
         lastLoginAt: new Date(),
-      },
+      }),
     });
     return user;
   }
@@ -189,13 +197,12 @@ async function syncUserFromAuth0(auth0User: any) {
     
     user = await prisma.user.update({
       where: { id: existingUserByEmail.id },
-      data: {
+      data: prepareUserData({
         auth0Id,
         provider,
-        roles: currentRoles, // Ensure roles array is set
-        role: existingUserByEmail.role || currentRoles[0], // Ensure primary role is set
+        roles: currentRoles, // roles is source of truth - role auto-syncs from roles[0]
         lastLoginAt: new Date(),
-      },
+      }),
     });
     return user;
   }
@@ -204,16 +211,15 @@ async function syncUserFromAuth0(auth0User: any) {
   // Default to company_user role (normal user), can be updated later in admin dashboard
   const defaultRoles = ["company_user"];
   user = await prisma.user.create({
-    data: {
+    data: prepareUserData({
       email,
       name,
       auth0Id,
       provider,
-      roles: defaultRoles, // Array of roles - defaults to company_user
-      role: defaultRoles[0], // Primary role (first in array) - defaults to company_user
+      roles: defaultRoles, // roles is source of truth - role auto-syncs from roles[0]
       status: "active", // Default status
       lastLoginAt: new Date(),
-    },
+    }),
   });
   
   console.log(`[Auth0] ✅ New user auto-registered: ${email} with default role: ${defaultRoles[0]}`);
@@ -440,14 +446,31 @@ export const auth0Login = async (input: LoginInput) => {
     const auth0User = await userInfoResponse.json();
 
     // Sync user to database
-    const user = await syncUserFromAuth0(auth0User);
+    let user = await syncUserFromAuth0(auth0User);
+
+    // Check for preferred role and apply it if user has multiple roles
+    const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+    const metadata = user.metadata as any;
+    const preferredRole = metadata?.preferredRole;
+
+    // If user has multiple roles and a preferred role is set, apply it
+    if (roles.length > 1 && preferredRole && roles.includes(preferredRole)) {
+      // Reorder roles to put preferred role first
+      const updatedRoles = [preferredRole, ...roles.filter(r => r !== preferredRole)];
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: prepareUserData({
+          roles: updatedRoles, // Preferred role becomes roles[0], role auto-syncs
+        }),
+      });
+    }
 
     // Generate tokens
     const { token, refreshToken } = generateTokens(user);
     await saveRefreshToken(user.id, refreshToken, token);
 
-    // Get roles array (handle legacy single role)
-    const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+    // Get final roles array
+    const finalRoles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
 
     return {
       token,
@@ -456,8 +479,9 @@ export const auth0Login = async (input: LoginInput) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role, // Primary role
-        roles, // Array of all roles
+        role: user.role, // Primary role (may be preferred role if set)
+        roles: finalRoles, // Array of all roles
+        preferredRole: preferredRole || null,
       },
     };
   } catch (error: any) {
@@ -495,14 +519,31 @@ export const auth0GoogleLogin = async (input: GoogleLoginInput) => {
     const auth0User = await verifyAuth0Token(input.accessToken);
 
     // Sync user to database (handles duplicate emails)
-    const user = await syncUserFromAuth0(auth0User);
+    let user = await syncUserFromAuth0(auth0User);
+
+    // Check for preferred role and apply it if user has multiple roles
+    const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+    const metadata = user.metadata as any;
+    const preferredRole = metadata?.preferredRole;
+
+    // If user has multiple roles and a preferred role is set, apply it
+    if (roles.length > 1 && preferredRole && roles.includes(preferredRole)) {
+      // Reorder roles to put preferred role first
+      const updatedRoles = [preferredRole, ...roles.filter(r => r !== preferredRole)];
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: prepareUserData({
+          roles: updatedRoles, // Preferred role becomes roles[0], role auto-syncs
+        }),
+      });
+    }
 
     // Generate tokens
     const { token, refreshToken } = generateTokens(user);
     await saveRefreshToken(user.id, refreshToken, token);
 
-    // Get roles array (handle legacy single role)
-    const roles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
+    // Get final roles array
+    const finalRoles = Array.isArray(user.roles) ? user.roles : user.role ? [user.role] : [];
 
     return {
       token,
@@ -511,8 +552,9 @@ export const auth0GoogleLogin = async (input: GoogleLoginInput) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role, // Primary role
-        roles, // Array of all roles
+        role: user.role, // Primary role (may be preferred role if set)
+        roles: finalRoles, // Array of all roles
+        preferredRole: preferredRole || null,
       },
     };
   } catch (error: any) {
@@ -602,13 +644,15 @@ export const setupPassword = async (userId: string, input: SetupPasswordInput) =
 
 /**
  * Select portal/role for user with multiple roles
+ * @param setAsDefault - Whether to set this role as the default for future logins
  */
-export const selectPortal = async (userId: string, role: string) => {
+export const selectPortal = async (userId: string, role: string, setAsDefault: boolean = false) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         roles: true,
+        metadata: true,
       },
     });
 
@@ -630,20 +674,145 @@ export const selectPortal = async (userId: string, role: string) => {
       });
     }
 
-    // Update primary role
-    await prisma.user.update({
+    // Update primary role by moving it to first position in roles array
+    const updatedRoles = [role, ...roles.filter(r => r !== role)];
+    
+    // Update metadata with preferred role if requested
+    const metadata = (user.metadata as any) || {};
+    if (setAsDefault) {
+      metadata.preferredRole = role;
+    }
+
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        role, // Set as primary role
+      data: prepareUserData({
+        roles: updatedRoles, // Move selected role to first position - role auto-syncs from roles[0]
+        metadata: metadata,
+      }),
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        roles: true,
+        companyId: true,
+        metadata: true,
       },
     });
 
-    return { success: true, role };
+    // Ensure roles is always an array
+    const userRoles = Array.isArray(updatedUser.roles) ? updatedUser.roles : updatedUser.role ? [updatedUser.role] : [];
+    const updatedMetadata = updatedUser.metadata as any;
+    const preferredRole = updatedMetadata?.preferredRole || null;
+
+    return {
+      success: true,
+      role: updatedUser.role,
+      roles: userRoles,
+      preferredRole,
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        roles: userRoles,
+        company_id: updatedUser.companyId,
+        preferredRole,
+      },
+    };
   } catch (error) {
     if (error instanceof TRPCError) throw error;
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Failed to select portal",
+    });
+  }
+};
+
+/**
+ * Set preferred/default role for user (for future logins)
+ */
+export const setPreferredRole = async (userId: string, input: SetPreferredRoleInput) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        roles: true,
+        metadata: true,
+      },
+    });
+
+    if (!user) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "User not found",
+      });
+    }
+
+    // Get roles array
+    const roles = Array.isArray(user.roles) ? user.roles : [];
+
+    // Check if user has the requested role
+    if (!roles.includes(input.role)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "User does not have access to this role",
+      });
+    }
+
+    // Update metadata with preferred role
+    const metadata = (user.metadata as any) || {};
+    if (input.setAsDefault) {
+      metadata.preferredRole = input.role;
+    } else {
+      delete metadata.preferredRole;
+    }
+
+    // If setting as default, also update the current role
+    let updatedRoles = roles;
+    if (input.setAsDefault) {
+      updatedRoles = [input.role, ...roles.filter(r => r !== input.role)];
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: prepareUserData({
+        roles: updatedRoles,
+        metadata: metadata,
+      }),
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        roles: true,
+        companyId: true,
+        metadata: true,
+      },
+    });
+
+    const userRoles = Array.isArray(updatedUser.roles) ? updatedUser.roles : updatedUser.role ? [updatedUser.role] : [];
+    const updatedMetadata = updatedUser.metadata as any;
+    const preferredRole = updatedMetadata?.preferredRole || null;
+
+    return {
+      success: true,
+      preferredRole,
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        roles: userRoles,
+        company_id: updatedUser.companyId,
+        preferredRole,
+      },
+    };
+  } catch (error) {
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Failed to set preferred role",
     });
   }
 };

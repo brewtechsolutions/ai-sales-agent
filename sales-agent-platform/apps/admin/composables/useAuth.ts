@@ -10,6 +10,7 @@ interface User {
   role: string; // Primary/current role ('super_admin' | 'company_admin' | 'company_user')
   roles?: string[]; // Array of all roles (for users with multiple roles)
   company_id?: string | null;
+  preferredRole?: string | null; // Preferred/default role for login
 }
 
 export const useAuth = () => {
@@ -40,20 +41,37 @@ export const useAuth = () => {
       
       // Check if user has multiple roles
       const userRoles = response.user.roles || (response.user.role ? [response.user.role] : []);
+      const preferredRole = (response.user as any).preferredRole;
+      
       if (userRoles.length > 1) {
-        // Multiple roles - redirect to portal selection
-        router.push("/auth/select-portal");
+        // Multiple roles - check if preferred role is set
+        if (preferredRole && userRoles.includes(preferredRole)) {
+          // User has preferred role set - route directly to that portal
+          const userRole = preferredRole;
+          if (userRole === 'super_admin') {
+            router.push("/admin/dashboard");
+          } else if (userRole === 'company_admin') {
+            router.push("/organization/dashboard");
+          } else if (userRole === 'company_user') {
+            router.push("/agent/dashboard");
+          } else {
+            router.push("/");
+          }
+        } else {
+          // No preferred role - redirect to portal selection
+          router.push("/auth/select-portal");
+        }
       } else {
         // Single role - route directly
         const userRole = response.user.role;
         if (userRole === 'super_admin') {
           router.push("/admin/dashboard");
         } else if (userRole === 'company_admin') {
-          router.push("/company/dashboard");
+          router.push("/organization/dashboard");
         } else if (userRole === 'company_user') {
           router.push("/agent/dashboard");
         } else {
-      router.push("/");
+          router.push("/");
         }
       }
     } catch (e) {
@@ -132,6 +150,7 @@ export const useAuth = () => {
           user.value = {
             ...response,
             roles: response.roles || (response.role ? [response.role] : []),
+            preferredRole: (response as any).preferredRole || null,
           };
         } else {
           user.value = null;
@@ -152,6 +171,7 @@ export const useAuth = () => {
                 user.value = {
                   ...response,
                   roles: response.roles || (response.role ? [response.role] : []),
+                  preferredRole: (response as any).preferredRole || null,
                 };
               } else {
                 user.value = null;

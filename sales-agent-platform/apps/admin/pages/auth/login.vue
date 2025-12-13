@@ -205,10 +205,17 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     // Check if user has multiple roles - show portal selection
     await checkAuth()
     const currentUser = user.value
+    const preferredRole = (loggedInUser as any).preferredRole || (currentUser as any)?.preferredRole
     
     if (currentUser?.roles && currentUser.roles.length > 1) {
-      // User has multiple roles - redirect to portal selection
-      await navigateTo('/auth/select-portal')
+      // User has multiple roles - check if preferred role is set
+      if (preferredRole && currentUser.roles.includes(preferredRole)) {
+        // User has preferred role set - route directly to that portal
+        await routeToDashboard(preferredRole)
+      } else {
+        // No preferred role - redirect to portal selection
+        await navigateTo('/auth/select-portal')
+      }
     } else {
       // Single role - route directly
       await routeToDashboard(currentUser?.role || loggedInUser.role)

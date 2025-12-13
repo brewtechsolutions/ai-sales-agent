@@ -38,7 +38,10 @@
       </nav>
 
       <!-- User Profile -->
-      <div class="p-4 border-t border-border dark:border-dark-border">
+      <div class="p-4 border-t border-border dark:border-dark-border space-y-3">
+        <!-- Role Switcher (if user has multiple roles) -->
+        <RoleSwitcher v-if="hasMultipleRoles" />
+
         <div class="flex items-center justify-between">
           <div class="flex items-center">
             <img
@@ -48,6 +51,9 @@
             >
             <div class="ml-3">
               <p class="text-sm font-medium text-text-primary dark:text-dark-text-primary">{{ user?.name || 'User' }}</p>
+              <p class="text-xs text-text-secondary dark:text-dark-text-secondary capitalize">
+                {{ currentRoleLabel }}
+              </p>
             </div>
           </div>
           <button
@@ -80,6 +86,24 @@ const route = useRoute()
 
 // Unwrapped user for template use
 const user = computed(() => toValue(authStore.user))
+
+// Check if user has multiple roles
+const hasMultipleRoles = computed(() => {
+  const userRoles = user.value?.roles || (user.value?.role ? [user.value.role] : [])
+  return userRoles.length > 1
+})
+
+// Current role label
+const roleLabels: Record<string, string> = {
+  super_admin: 'Platform Admin',
+  company_admin: 'Company Admin',
+  company_user: 'Sales Agent',
+}
+
+const currentRoleLabel = computed(() => {
+  const role = user.value?.role || ''
+  return roleLabels[role] || role.replace('_', ' ')
+})
 
 // Determine navigation based on user role
 const navigationItems = computed(() => {
